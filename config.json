@@ -16,11 +16,13 @@
       "key": "Ikanbot",
       "name": "🎬 爱看",
       "type": 3,
-      "api": "./js/ikanbot-standalone.js",
+      "api": "csp_Ikanbot",
       "searchable": 1,
       "quickSearch": 1,
       "filterable": 1,
-      "changeable": 1
+      "changeable": 1,
+      "jar": "./jar/XYQ.jar",
+      "ext": "https://v.aikanbot.com"
     },
     {
       "key": "ddys",
