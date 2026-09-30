@@ -303,3 +303,26 @@ https://github.com/USYDShawnTan/tvbox/tree/1.2.0
 ```
 
 > 本仓库用于个人配置与技术研究。第三方站点、接口和 Spider 的可用性可能随时间变化。
+
+
+### Ikanbot 混合播放地址兼容
+
+部分 Ikanbot 线路会返回混合格式，例如：
+
+```text
+https://...$$HDTC中字$https://...$$TC$高清版$https://...
+```
+
+优速现在不再按第一个 `$` 生硬切分，而是优先识别 `http / https / ftp / magnet / xg` 等协议位置。协议之前的多个标签会合并成显示名称，例如：
+
+```text
+TC$高清版$https://example.com/a.m3u8
+```
+
+会规范成：
+
+```text
+TC 高清版$https://example.com/a.m3u8
+```
+
+这样不会把“高清版”等文字误拼进真实播放 URL。
