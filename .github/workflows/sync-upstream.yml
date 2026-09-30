@@ -4,6 +4,11 @@ on:
   workflow_dispatch:
   schedule:
     - cron: "17 */6 * * *"
+  push:
+    branches:
+      - main
+    paths:
+      - ".github/workflows/sync-upstream.yml"
 
 permissions:
   contents: write
@@ -58,7 +63,7 @@ jobs:
       - name: Commit changes
         shell: bash
         run: |
-          if git diff --quiet && git status --porcelain | grep -q '^$'; then
+          if [[ -z "$(git status --porcelain)" ]]; then
             echo "No upstream changes."
             exit 0
           fi
