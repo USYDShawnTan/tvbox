@@ -13,7 +13,15 @@ function abs(url) {
 function pic(url) {
   const value = abs(url);
   if (!value) return "";
-  return "https://img-p.aikanbot.com/proxy?url=" + encodeURIComponent(value);
+
+  // FongMi understands the @Headers suffix on image URLs.
+  // This mirrors the newer Ikanbot JAR behavior and avoids routing
+  // every poster through img-p.aikanbot.com, which failed on the box.
+  const headers = JSON.stringify({
+    "User-Agent": "Mozilla/5.0 (Linux; Android 13; V2049A Build/TP1A.220624.014; wv) AppleWebKit/537.36 (KHTML, like Gecko) Version/4.0 Chrome/116.0.0.0 Mobile Safari/537.36",
+    "Referer": "https://www.douban.com"
+  });
+  return value + "@Headers=" + headers;
 }
 
 async function get(url, extra = {}) {
