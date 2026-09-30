@@ -43,7 +43,11 @@
       "changeable": 1,
       "timeout": 60,
       "ext": {
-        "host": "http://api2.rinhome.com"
+        "host": "https://api.ztcgi.com"
+      },
+      "style": {
+        "type": "rect",
+        "ratio": 0.75
       }
     },
     {
