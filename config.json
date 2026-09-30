@@ -1,20 +1,10 @@
 {
   "spider": "./jar/pg.jar",
-  "wallpaper": "https://jianbian.chuqiuyu.workers.dev",
-  "lives": [
-    {
-      "name": "直播",
-      "type": 0,
-      "url": "./list.txt",
-      "playerType": 2,
-      "epg": "http://epg.112114.xyz/?ch={name}&date={date}",
-      "logo": "https://epg.112114.xyz/logo/{name}.png"
-    }
-  ],
+  "wallpaper": "https://picsum.photos/1920/1080?blur=1",
   "sites": [
     {
       "key": "Ikanbot",
-      "name": "🎬 爱看",
+      "name": "🎬 爱看·快速",
       "type": 3,
       "api": "csp_Ikanbot",
       "searchable": 1,
@@ -26,11 +16,11 @@
     },
     {
       "key": "IkanbotCover",
-      "name": "🧪 爱看·封面修复",
+      "name": "🖼️ 爱看·高清封面",
       "type": 3,
       "api": "./js/ikanbot-cover.js",
       "searchable": 1,
-      "quickSearch": 1,
+      "quickSearch": 0,
       "filterable": 1,
       "changeable": 1,
       "ext": {
@@ -46,6 +36,23 @@
       "searchable": 0,
       "changeable": 1,
       "ext": "./json/douban.json"
+    },
+    {
+      "key": "BiliDirect",
+      "name": "📺 哔哩",
+      "type": 3,
+      "api": "./js/bili.js",
+      "searchable": 1,
+      "quickSearch": 0,
+      "filterable": 0,
+      "changeable": 0,
+      "style": {
+        "type": "rect",
+        "ratio": 1.755
+      },
+      "ext": {
+        "cookie": ""
+      }
     }
   ]
 }
