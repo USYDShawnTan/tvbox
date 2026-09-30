@@ -431,6 +431,47 @@ function token(currentId, eToken) {
   }
   return out.join("");
 }
+function parsePlayEntries(rawValue, fallbackLabel) {
+  const value = String(rawValue || "").replace(/#{2,}/g, "#").trim();
+  if (!value) return [];
+
+  // Ikanbot has more than one playlist encoding in the wild.
+  // Parse from the URL protocol instead of assuming the first "$"
+  // always separates the display label and the URL.
+  const chunks = value.includes("#")
+    ? value.split("#")
+    : value.split(new RegExp("\\$" + "{2,}"));
+  const result = [];
+
+  for (const chunk of chunks) {
+    const part = String(chunk || "").trim();
+    if (!part) continue;
+
+    const match = part.match(/(?:https?:\/\/|ftp:\/\/|magnet:\?|magnet:|ed2k:\/\/|thunder:\/\/|tvbox-xg:|xgplay:\/\/|xg:\/\/)/i);
+    let name = "";
+    let url = "";
+
+    if (match && typeof match.index === "number") {
+      const pos = match.index;
+      name = part.slice(0, pos).replace(/\$+/g, " ").trim();
+      url = part.slice(pos).trim();
+    } else {
+      const pos = part.lastIndexOf("$");
+      if (pos > 0) {
+        name = part.slice(0, pos).replace(/\$+/g, " ").trim();
+        url = part.slice(pos + 1).trim();
+      } else {
+        url = part;
+      }
+    }
+
+    if (!url) continue;
+    name = (name || fallbackLabel || "播放").replace(/[$#]/g, " ").trim() || "播放";
+    result.push(name + "$" + url);
+  }
+
+  return result;
+}
 
 async function init(cfg) {
   try {
@@ -572,35 +613,15 @@ async function detail(id) {
       if (!item || !item.flag || !item.url) continue;
 
       const flag = String(item.flag);
-      const rawUrl = String(item.url).trim();
-      if (!rawUrl) continue;
-
       const label = String(item.name || item.title || item.remarks || "播放")
         .replace(/[$#]/g, " ")
         .trim() || "播放";
 
+      const entries = parsePlayEntries(item.url, label);
+      if (!entries.length) continue;
+
       if (!groups.has(flag)) groups.set(flag, []);
-
-      // getResN normally returns one episode object at a time:
-      // {flag, name, url}. Build TVBox's "episode$url" ourselves
-      // instead of concatenating raw line URLs.
-      if (rawUrl.includes("#")) {
-        for (const part of rawUrl.split("#")) {
-          const value = String(part || "").trim();
-          if (!value) continue;
-
-          if (value.includes("$")) {
-            const pos = value.indexOf("$");
-            const epName = value.slice(0, pos).replace(/[$#]/g, " ").trim() || label;
-            const epUrl = value.slice(pos + 1).trim();
-            if (epUrl) groups.get(flag).push(epName + "$" + epUrl);
-          } else {
-            groups.get(flag).push(label + "$" + value);
-          }
-        }
-      } else {
-        groups.get(flag).push(label + "$" + rawUrl);
-      }
+      groups.get(flag).push(...entries);
     }
   }
 
