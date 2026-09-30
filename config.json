@@ -25,6 +25,19 @@
       "ext": "https://v.aikanbot.com"
     },
     {
+      "key": "IkanbotCover",
+      "name": "🧪 爱看·封面修复",
+      "type": 3,
+      "api": "./js/ikanbot-cover.js",
+      "searchable": 1,
+      "quickSearch": 1,
+      "filterable": 1,
+      "changeable": 1,
+      "ext": {
+        "host": "https://v.aikanbot.com"
+      }
+    },
+    {
       "key": "ddys",
       "name": "🎞️ 低端",
       "type": 3,
