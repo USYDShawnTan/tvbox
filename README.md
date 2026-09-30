@@ -39,12 +39,10 @@ tvbox/
 ├── jar/
 │   ├── pg.jar
 │   └── XYQ.jar
+├── js/
+│   └── ikanbot-cover.js
 ├── json/
-│   ├── bili.json
-│   ├── douban.json
-│   └── sambashare.txt
-├── lib/
-│   └── token.json
+│   └── douban.json
 ├── .github/
 │   └── workflows/
 │       └── sync-upstream.yml
@@ -58,38 +56,12 @@ tvbox/
 | 名称 | 实现 | 说明 |
 | --- | --- | --- |
 | 🎬 爱看 | `XYQ.jar / csp_Ikanbot` | 原始稳定入口，搜索 / 播放正常，部分结果封面缺失 |\n| 🧪 爱看·封面修复 | `QuickJS / js/ikanbot-cover.js` | Ikanbot 负责搜索播放，豆瓣补高清封面；当前推荐测试入口 |
-| 🎞️ 低端 | `pg.jar / csp_Ddys` | 备用影视源 |
 | 📚 豆瓣 | `pg.jar / csp_Douban` | 分类 / 推荐 |
-| 📺 哔哩 | `pg.jar / csp_Bili` | Bilibili |
-| 💾 本地 | `pg.jar / csp_Local` | 本地文件 |
-| 🗄️ NAS / Samba | `pg.jar / csp_SambaShare` | 局域网媒体 |
 | 📡 直播 | `list.txt` | 直播频道 |
 
 ---
 
-## 低端 / 豆瓣 / 哔哩分别是什么？
-
-### 🎞️ 低端
-
-配置：
-
-```json
-{
-  "api": "csp_Ddys",
-  "ext": "./lib/token.json$$https://ddys.pro/$$proxy$$1$$"
-}
-```
-
-这是 **低端影视（DDYS）站点源**。
-
-它和 Ikanbot 一样属于实际影视内容源，主要负责：
-
-- 搜索影片
-- 获取详情
-- 获取播放线路
-- 实际点播
-
-本仓库把它作为备用影视源。当前配置仍包含 `$$proxy`，如果盒子本机没有对应代理进程，搜索阶段可能出现 `127.0.0.1:10172 ECONNREFUSED`。
+## 豆瓣是什么？
 
 ### 📚 豆瓣
 
@@ -125,38 +97,6 @@ searchable = 0
 Ikanbot → 搜索 / 详情 ID / 播放线路
 豆瓣   → 海报 / 元数据补全
 ```
-
-### 📺 哔哩
-
-配置：
-
-```json
-{
-  "api": "csp_Bili",
-  "searchable": 1,
-  "quickSearch": 1,
-  "filterable": 1,
-  "style": {
-    "type": "rect",
-    "ratio": 1.755
-  },
-  "ext": {
-    "json": "./json/bili.json",
-    "cookie": ""
-  }
-}
-```
-
-这是 **Bilibili 内容源**。
-
-它主要用来：
-
-- 搜索 B 站视频
-- 浏览按 `bili.json` 定义的分类
-- 播放 Bilibili 视频
-- 用 16:9 横向卡片展示内容
-
-当前 `cookie` 为空，所以属于未登录模式；如果以后需要登录态内容、个人账号能力或更完整的 B 站访问能力，可以再单独配置 Cookie。
 
 ---
 
@@ -197,11 +137,7 @@ https://v.aikanbot.com
 
 ```text
 全局 pg.jar
-├── 低端
-├── 豆瓣
-├── B站
-├── 本地
-└── Samba
+└── 豆瓣
 
 爱看
 └── 单独使用 XYQ.jar
@@ -294,9 +230,11 @@ GitHub Actions 每 6 小时检查一次：
 jar/pg.jar
 jar/XYQ.jar
 json/douban.json
-json/bili.json
-json/sambashare.txt
-lib/token.json
+list.txt
+```text
+jar/pg.jar
+jar/XYQ.jar
+json/douban.json
 list.txt
 ```
 
@@ -373,7 +311,6 @@ leanback-armeabi_v7a.apk
 
 ## 已知事项
 
-1. `🎞️ 低端` 当前配置仍包含 `$$$proxy`，如果盒子没有启动本地代理，搜索可能出现 `127.0.0.1:10172 ECONNREFUSED`。这不影响 Ikanbot。
 
 2. `pg.jar` 初始化时可能尝试寻找迅雷、磁力、FFmpeg 等可选 native library。如果仓库中不存在对应 `.so` 文件，日志里会看到 404；只要没有使用对应能力，一般不影响普通点播。
 
@@ -430,3 +367,17 @@ leanback-armeabi_v7a.apk
 - 对豆瓣缩略图路径也会尝试升级到 `/view/photo/l/public/` 大图路径。
 
 当前仍保留原始 `🎬 爱看` 作为兼容 / 回退入口。
+
+
+## 已移除入口
+
+为了保持配置精简，当前已移除：
+
+```text
+🎞️ 低端 / DDYS
+📺 哔哩 / Bilibili
+💾 本地
+🗄️ NAS / Samba
+```
+
+其中 Bilibili 在当前盒子环境中无法正常使用；低端及本地/NAS 相关入口当前也没有实际需求，因此一起从 `config.json` 和自动同步清单中移除。
