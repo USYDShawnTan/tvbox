@@ -2,6 +2,8 @@ import cheerio from "assets://js/lib/cheerio.min.js";
 
 let host = "https://v.aikanbot.com";
 const UA = "Mozilla/5.0 (Linux; Android 11; TV) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36";
+const DOUBAN_TIMEOUT = 3000;
+const DOUBAN_CONCURRENCY = 3;
 const doubanPosterCache = new Map();
 
 function abs(url) {
@@ -28,6 +30,7 @@ function pic(url) {
 async function get(url, extra = {}) {
   const res = await req(url, {
     method: "get",
+    timeout: 8000,
     headers: Object.assign({
       "User-Agent": UA,
       "Referer": host + "/"
@@ -74,6 +77,7 @@ async function fetchDoubanLargePic(type, id) {
 
       const res = await req(url, {
         method: "get",
+        timeout: DOUBAN_TIMEOUT,
         headers: {
           "Host": "frodo.douban.com",
           "Connection": "Keep-Alive",
@@ -95,16 +99,18 @@ async function fetchDoubanLargePic(type, id) {
   return "";
 }
 
-async function doubanPoster(name) {
-  const key = String(name || "").trim();
-  if (!key) return "";
-  if (doubanPosterCache.has(key)) return doubanPosterCache.get(key);
+async function doubanPoster(name, year = "") {
+  const titleKey = String(name || "").trim();
+  const yearKey = String(year || "").trim();
+  const cacheKey = titleKey + "::" + yearKey;
+  if (!titleKey) return "";
+  if (doubanPosterCache.has(cacheKey)) return doubanPosterCache.get(cacheKey);
 
   let result = "";
   try {
     const url =
       "https://frodo.douban.com/rexxar/api/v2/search/weixin?q=" +
-      encodeURIComponent(key) +
+      encodeURIComponent(titleKey) +
       "&start=0&count=20&apikey=0ac44ae016490db2204ce0a042db2916";
 
     const res = await req(url, {
@@ -120,7 +126,7 @@ async function doubanPoster(name) {
     const body = res && res.content ? res.content : "";
     const data = JSON.parse(body || "{}");
     const items = Array.isArray(data.items) ? data.items : [];
-    const target = normalizeTitle(key);
+    const target = normalizeTitle(titleKey);
 
     const candidates = items
       .map(item => ({
@@ -134,29 +140,41 @@ async function doubanPoster(name) {
         return type === "movie" || type === "tv";
       });
 
-    let hit = candidates.find(x => normalizeTitle(x.target.title) === target);
+    let hit = candidates.find(x =>
+      normalizeTitle(x.target.title) === target &&
+      (!yearKey || String(x.target.year || x.item.year || "") === yearKey)
+    );
+
+    if (!hit) {
+      hit = candidates.find(x => normalizeTitle(x.target.title) === target);
+    }
+
     if (!hit) {
       hit = candidates.find(x => {
         const title = normalizeTitle(x.target.title);
         return title && target && (title.includes(target) || target.includes(title));
       });
     }
+
     if (!hit && candidates.length) hit = candidates[0];
 
     if (hit && hit.target) {
       const targetId = hit.target.id || hit.item.id || "";
       const targetType = String(hit.item.target_type || hit.target.type || "");
 
-      // Prefer the subject detail endpoint's high-resolution pic.large.
-      let raw = await fetchDoubanLargePic(targetType, targetId);
+      // Prefer a high-resolution image already present in search results.
+      // Most hits already contain pic.large or a URL that can be promoted
+      // from s_ratio_poster/m to l/public, avoiding a second HTTP request.
+      let raw =
+        (hit.target.pic && hit.target.pic.large) ||
+        hit.target.cover_url ||
+        (hit.target.pic && (hit.target.pic.normal || hit.target.pic.small)) ||
+        "";
 
-      if (!raw) {
-        raw =
-          (hit.target.pic && (hit.target.pic.large || hit.target.pic.normal || hit.target.pic.small)) ||
-          hit.target.cover_url ||
-          "";
-        raw = upgradeDoubanImage(raw);
-      }
+      raw = upgradeDoubanImage(raw);
+
+      // Only hit the detail endpoint when the search result truly has no image.
+      if (!raw) raw = await fetchDoubanLargePic(targetType, targetId);
 
       if (raw) {
         raw = String(raw);
@@ -169,31 +187,35 @@ async function doubanPoster(name) {
       }
     }
 
-    console.log("[ikanbot-cover] douban=" + key + " poster=" + (result ? "ok" : "miss"));
+    console.log("[ikanbot-cover] douban=" + titleKey + (yearKey ? " (" + yearKey + ")" : "") + " poster=" + (result ? "ok" : "miss"));
   } catch (e) {
-    console.log("[ikanbot-cover] douban poster lookup failed: " + key + " " + e.message);
+    console.log("[ikanbot-cover] douban poster lookup failed: " + titleKey + " " + e.message);
   }
 
-  doubanPosterCache.set(key, result);
+  doubanPosterCache.set(cacheKey, result);
   return result;
 }
 
 async function fillDoubanPosters(list) {
-  for (const item of list) {
-    const poster = await doubanPoster(item.vod_name);
-    if (poster) item.vod_pic = poster;
+  for (let i = 0; i < list.length; i += DOUBAN_CONCURRENCY) {
+    const batch = list.slice(i, i + DOUBAN_CONCURRENCY);
+    await Promise.all(batch.map(async item => {
+      const poster = await doubanPoster(item.vod_name, item.vod_year || "");
+      if (poster) item.vod_pic = poster;
+    }));
   }
   return list;
 }
 
-function addVod(list, seen, id, name, image, remarks) {
+function addVod(list, seen, id, name, image, remarks, year = "") {
   if (!id || !name || seen.has(id)) return;
   seen.add(id);
   list.push({
     vod_id: id,
     vod_name: name,
     vod_pic: pic(image),
-    vod_remarks: remarks || ""
+    vod_remarks: remarks || "",
+    vod_year: year || ""
   });
 }
 
@@ -207,15 +229,19 @@ function parseList(html, search = false) {
       const root = $(el);
       const a = root.find("a[href*='/play/']:first");
       const img = root.find("img:first");
+      const titleText = root.find(".title-text:first").text().trim();
+      const yearMatch = titleText.match(/(?:^|\s)(\d{4})\s*$/);
+      const year = yearMatch ? yearMatch[1] : "";
+      const cleanTitle = titleText.replace(/\s+\d{4}\s*$/, "").trim();
+
       addVod(
         list,
         seen,
         a.attr("href"),
-        root.find(".title-text:first").text().replace(/\s+\d{4}\s*$/, "").trim() ||
-          img.attr("alt") ||
-          root.find("h5:first").text().trim(),
+        cleanTitle || img.attr("alt") || root.find("h5:first").text().trim(),
         img.attr("data-src") || img.attr("src"),
-        root.find("span.label:first").text().trim()
+        root.find("span.label:first").text().trim(),
+        year
       );
     });
 
@@ -336,10 +362,15 @@ async function search(wd, quick, pg) {
   // on Ikanbot's image CDN / anti-hotlink behavior.
   await fillDoubanPosters(list);
 
-  console.log("[ikanbot-cover] search=" + wd + " results=" + list.length);
+  const $ = load(html);
+  const hasMore = $("div.page-more a, ul.pagination a").toArray().some(a =>
+    $(a).text().includes("下一页") || $(a).attr("rel") === "next"
+  );
+
+  console.log("[ikanbot-cover] search=" + wd + " results=" + list.length + " hasMore=" + hasMore);
   return JSON.stringify({
     page: pg,
-    pagecount: list.length ? pg + 1 : pg,
+    pagecount: hasMore ? pg + 1 : pg,
     list
   });
 }
