@@ -16,12 +16,11 @@
       "key": "Ikanbot",
       "name": "🎬 爱看",
       "type": 3,
-      "api": "./lib/drpy2.min.js",
+      "api": "./js/ikanbot-standalone.js",
       "searchable": 1,
       "quickSearch": 1,
       "filterable": 1,
-      "changeable": 1,
-      "ext": "./js/ikanbot.js"
+      "changeable": 1
     },
     {
       "key": "ddys",
