@@ -123,9 +123,31 @@ async function search(wd, quick, pg) {
   const searchUrl = host + "/search?q=" + encodeURIComponent(wd) + "&p=" + pg;
   console.log("[ikanbot] search " + searchUrl);
 
-  const html = await request(searchUrl);
+  const response = await http(searchUrl, {
+    method: "get",
+    headers: {
+      "User-Agent": UA,
+      "Referer": host + "/"
+    }
+  });
+  const html = response && response.content ? response.content : "";
+  console.log("[ikanbot] http status=" + (response && response.status) +
+    " url=" + (response && response.url) +
+    " len=" + html.length);
+  console.log("[ikanbot] html head=" + html.slice(0, 600).replace(/\\s+/g, " "));
+
   const $ = load(html);
   const list = [];
+
+  const hrefSamples = [];
+  $("a[href]").each((_, a) => {
+    if (hrefSamples.length >= 30) return;
+    hrefSamples.push({
+      href: $(a).attr("href") || "",
+      text: $(a).text().replace(/\\s+/g, " ").trim().slice(0, 60)
+    });
+  });
+  console.log("[ikanbot] href samples=" + JSON.stringify(hrefSamples));
 
   $("div.media").each((_, item) => {
     const v = card($, item);
