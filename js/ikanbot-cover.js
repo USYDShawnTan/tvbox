@@ -4,65 +4,6 @@ let host = "https://v.aikanbot.com";
 const UA = "Mozilla/5.0 (Linux; Android 11; TV) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36";
 const DOUBAN_TIMEOUT = 2500;
 const DOUBAN_CONCURRENCY = 3;
-const LINE_SEPARATOR = "$" + "$" + "$";
-const PREFERRED_LINES = [
-  { name: "量子", flags: ["lzm3u8", "lz线路", "lz"] },
-  { name: "非凡", flags: ["ffm3u8", "ff"] },
-  { name: "优质", flags: ["1080zyk", "1080zy"] },
-  { name: "西瓜", flags: ["xigua", "xiguam3u8", "xgm3u8"] },
-  { name: "快车", flags: ["kcm3u8", "kc"] }
-];
-
-const LINE_NAMES = {
-  "dyttm3u8":"天堂",
-  "360zy":"360",
-  "iqym3u8":"爱奇艺",
-  "mtm3u8":"茅台",
-  "subm3u8":"速播",
-  "nnm3u8":"牛牛",
-  "okm3u8":"欧克",
-  "tym3u8":"TY",
-  "yym3u8":"歪歪",
-  "bfzym3u8":"暴风",
-  "1080zyk":"优质",
-  "kuaikan":"快看",
-  "lzm3u8":"量子",
-  "ffm3u8":"非凡",
-  "snm3u8":"索尼",
-  "qhm3u8":"奇虎",
-  "hym3u8":"虎牙",
-  "haiwaikan":"海外看",
-  "gsm3u8":"光速",
-  "zuidam3u8":"最大",
-  "bjm3u8":"八戒",
-  "wolong":"卧龙",
-  "xlm3u8":"新浪",
-  "yhm3u8":"樱花",
-  "tkm3u8":"天空",
-  "jsm3u8":"极速",
-  "wjm3u8":"无尽",
-  "sdm3u8":"闪电",
-  "kcm3u8":"快车",
-  "jinyingm3u8":"金鹰",
-  "fsm3u8":"飞速",
-  "tpm3u8":"淘片",
-  "lem3u8":"鱼乐",
-  "dbm3u8":"百度",
-  "tomm3u8":"番茄",
-  "ukm3u8":"优酷",
-  "ikm3u8":"爱坤",
-  "hnzym3u8":"红牛资源",
-  "hnm3u8":"红牛",
-  "68zy_m3u8":"六八",
-  "kdm3u8":"酷点",
-  "bdxm3u8":"北斗星",
-  "hhm3u8":"豪华",
-  "kbm3u8":"快播",
-  "mzm3u8":"MZ",
-  "xigua":"西瓜",
-  "xiguam3u8":"西瓜",
-  "xgm3u8":"西瓜"
-};
 const doubanPosterCache = new Map();
 
 function abs(url) {
@@ -431,48 +372,6 @@ function token(currentId, eToken) {
   }
   return out.join("");
 }
-function parsePlayEntries(rawValue, fallbackLabel) {
-  const value = String(rawValue || "").replace(/#{2,}/g, "#").trim();
-  if (!value) return [];
-
-  // Ikanbot has more than one playlist encoding in the wild.
-  // Parse from the URL protocol instead of assuming the first "$"
-  // always separates the display label and the URL.
-  const chunks = value.includes("#")
-    ? value.split("#")
-    : value.split(new RegExp("\\$" + "{2,}"));
-  const result = [];
-
-  for (const chunk of chunks) {
-    const part = String(chunk || "").trim();
-    if (!part) continue;
-
-    const match = part.match(/(?:https?:\/\/|ftp:\/\/|magnet:\?|magnet:|ed2k:\/\/|thunder:\/\/|tvbox-xg:|xgplay:\/\/|xg:\/\/)/i);
-    let name = "";
-    let url = "";
-
-    if (match && typeof match.index === "number") {
-      const pos = match.index;
-      name = part.slice(0, pos).replace(/\$+/g, " ").trim();
-      url = part.slice(pos).trim();
-    } else {
-      const pos = part.lastIndexOf("$");
-      if (pos > 0) {
-        name = part.slice(0, pos).replace(/\$+/g, " ").trim();
-        url = part.slice(pos + 1).trim();
-      } else {
-        url = part;
-      }
-    }
-
-    if (!url) continue;
-    name = (name || fallbackLabel || "播放").replace(/[$#]/g, " ").trim() || "播放";
-    result.push(name + "$" + url);
-  }
-
-  return result;
-}
-
 async function init(cfg) {
   try {
     const ext = cfg && cfg.ext ? cfg.ext : {};
@@ -605,71 +504,23 @@ async function detail(id) {
   const groups = new Map();
   for (const row of rows) {
     let items = [];
-    try {
-      items = JSON.parse(String(row.resData || "[]").replace(/#{2,}/g, "#"));
-    } catch (_) {}
-
+    try { items = JSON.parse(row.resData || "[]"); } catch (_) {}
     for (const item of items) {
       if (!item || !item.flag || !item.url) continue;
-
-      const flag = String(item.flag);
-      const label = String(item.name || item.title || item.remarks || "播放")
-        .replace(/[$#]/g, " ")
-        .trim() || "播放";
-
-      const entries = parsePlayEntries(item.url, label);
-      if (!entries.length) continue;
-
-      if (!groups.has(flag)) groups.set(flag, []);
-      groups.get(flag).push(...entries);
+      if (!groups.has(item.flag)) groups.set(item.flag, []);
+      groups.get(item.flag).push(String(item.url).replace(/##/g, "#"));
     }
   }
 
   const from = [];
   const urls = [];
-  const entries = Array.from(groups.entries()).map(([flag, values], index) => ({
-    flag: String(flag),
-    lower: String(flag).toLowerCase(),
-    values,
-    index
-  }));
-
-  const used = new Set();
-
-  function appendLine(entry, displayName) {
-    if (!entry || used.has(entry.lower)) return;
-
-    const seenUrls = new Set();
-    const merged = entry.values.filter(Boolean).filter(value => {
-      const pos = String(value).indexOf("$");
-      const url = pos >= 0 ? String(value).slice(pos + 1) : String(value);
-      if (!url || seenUrls.has(url)) return false;
-      seenUrls.add(url);
-      return true;
-    });
-
-    if (!merged.length) return;
-    used.add(entry.lower);
-    from.push(displayName || LINE_NAMES[entry.lower] || entry.flag);
-    urls.push(merged.join("#"));
+  for (const [flag, values] of groups.entries()) {
+    from.push(String(flag).replace(/m3u8/gi, "线路"));
+    urls.push(values.join("#"));
   }
 
-  // Keep the five commonly used lines first, but do not hide the others.
-  for (const pref of PREFERRED_LINES) {
-    const hit = entries.find(entry =>
-      pref.flags.some(flag => entry.lower === String(flag).toLowerCase())
-    );
-    appendLine(hit, pref.name);
-  }
-
-  // Append every remaining source in the order returned by Ikanbot.
-  for (const entry of entries) {
-    appendLine(entry, LINE_NAMES[entry.lower] || entry.flag);
-  }
-
-  console.log("[ikanbot-cover] lines=" + from.join(","));
-  vod.vod_play_from = from.join(LINE_SEPARATOR);
-  vod.vod_play_url = urls.join(LINE_SEPARATOR);
+  vod.vod_play_from = from.join("$$$");
+  vod.vod_play_url = urls.join("$$$");
 
   return JSON.stringify({ list:[vod] });
 }
