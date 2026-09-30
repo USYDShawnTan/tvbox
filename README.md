@@ -57,13 +57,106 @@ tvbox/
 
 | 名称 | 实现 | 说明 |
 | --- | --- | --- |
-| 🎬 爱看 | `XYQ.jar / csp_Ikanbot` | 当前稳定入口 |\n| 🧪 爱看·封面修复 | `QuickJS / js/ikanbot-cover.js` | 测试封面代理与资料解析 |
+| 🎬 爱看 | `XYQ.jar / csp_Ikanbot` | 原始稳定入口，搜索 / 播放正常，部分结果封面缺失 |\n| 🧪 爱看·封面修复 | `QuickJS / js/ikanbot-cover.js` | Ikanbot 负责搜索播放，豆瓣补高清封面；当前推荐测试入口 |
 | 🎞️ 低端 | `pg.jar / csp_Ddys` | 备用影视源 |
 | 📚 豆瓣 | `pg.jar / csp_Douban` | 分类 / 推荐 |
 | 📺 哔哩 | `pg.jar / csp_Bili` | Bilibili |
 | 💾 本地 | `pg.jar / csp_Local` | 本地文件 |
 | 🗄️ NAS / Samba | `pg.jar / csp_SambaShare` | 局域网媒体 |
 | 📡 直播 | `list.txt` | 直播频道 |
+
+---
+
+## 低端 / 豆瓣 / 哔哩分别是什么？
+
+### 🎞️ 低端
+
+配置：
+
+```json
+{
+  "api": "csp_Ddys",
+  "ext": "./lib/token.json$$https://ddys.pro/$$proxy$$1$$"
+}
+```
+
+这是 **低端影视（DDYS）站点源**。
+
+它和 Ikanbot 一样属于实际影视内容源，主要负责：
+
+- 搜索影片
+- 获取详情
+- 获取播放线路
+- 实际点播
+
+本仓库把它作为备用影视源。当前配置仍包含 `$$proxy`，如果盒子本机没有对应代理进程，搜索阶段可能出现 `127.0.0.1:10172 ECONNREFUSED`。
+
+### 📚 豆瓣
+
+配置：
+
+```json
+{
+  "api": "csp_Douban",
+  "searchable": 0,
+  "ext": "./json/douban.json"
+}
+```
+
+豆瓣在这里更像 **影视资料库 / 元数据源**，主要负责：
+
+- 电影、电视剧分类
+- 热门推荐和榜单
+- 海报
+- 评分
+- 年份、地区、演员等资料
+
+它不是本仓库的主要播放源，因此当前关闭了全局搜索：
+
+```text
+searchable = 0
+```
+
+从 `1.1.0` 开始，`🧪 爱看·封面修复` 还会借用豆瓣 Frodo API，根据 Ikanbot 返回的片名匹配豆瓣条目，再取 `pic.large` 作为高清海报。
+
+因此现在的关系是：
+
+```text
+Ikanbot → 搜索 / 详情 ID / 播放线路
+豆瓣   → 海报 / 元数据补全
+```
+
+### 📺 哔哩
+
+配置：
+
+```json
+{
+  "api": "csp_Bili",
+  "searchable": 1,
+  "quickSearch": 1,
+  "filterable": 1,
+  "style": {
+    "type": "rect",
+    "ratio": 1.755
+  },
+  "ext": {
+    "json": "./json/bili.json",
+    "cookie": ""
+  }
+}
+```
+
+这是 **Bilibili 内容源**。
+
+它主要用来：
+
+- 搜索 B 站视频
+- 浏览按 `bili.json` 定义的分类
+- 播放 Bilibili 视频
+- 用 16:9 横向卡片展示内容
+
+当前 `cookie` 为空，所以属于未登录模式；如果以后需要登录态内容、个人账号能力或更完整的 B 站访问能力，可以再单独配置 Cookie。
 
 ---
 
@@ -315,20 +408,25 @@ leanback-armeabi_v7a.apk
 
 ## 封面修复测试
 
-`1.0.0` 保留原来的 `XYQ.jar` 稳定方案。当前 `main` 额外增加：
+`1.0.0` 保留的是 `XYQ.jar + csp_Ikanbot` 稳定方案。
+
+`1.1.0` 增加：
 
 ```text
 🧪 爱看·封面修复
-  ↓
-js/ikanbot-cover.js
-  ↓
-https://v.aikanbot.com
-  ↓
-原始封面 URL + @Headers=...
+        │
+        ├── Ikanbot：搜索 / 播放
+        │
+        └── 豆瓣 Frodo API：高清封面
+                ↓
+              pic.large
 ```
 
-第一版尝试统一走 `img-p.aikanbot.com` 图片代理，但在 CM311-1a-YST 上测试为全部封面失败。
-当前改为沿用新版 Ikanbot JAR 的思路：保留原始封面 URL，并追加 FongMi 支持的 `@Headers`，
-携带 User-Agent / Referer 请求图片。
+最终验证结果：
 
-该测试源不会替换原来的 `🎬 爱看`，确认搜索、封面、详情和播放都正常后再考虑升级为默认入口。
+- Ikanbot 搜索和播放保持正常；
+- 原站部分搜索结果缺封面的问题，通过豆瓣按片名补图解决；
+- 普通豆瓣搜索图清晰度不足，因此最终会进一步请求豆瓣详情接口，优先使用 `pic.large`；
+- 对豆瓣缩略图路径也会尝试升级到 `/view/photo/l/public/` 大图路径。
+
+当前仍保留原始 `🎬 爱看` 作为兼容 / 回退入口。
