@@ -16,7 +16,7 @@
     },
     {
       "key": "IkanbotCover",
-      "name": "🖼️ 爱看·高清封面",
+      "name": "⚡ 优速",
       "type": 3,
       "api": "./js/ikanbot-cover.js",
       "searchable": 1,
@@ -31,15 +31,16 @@
       "key": "JianpianTest",
       "name": "🧪 荐片",
       "type": 3,
-      "api": "csp_JianPian",
+      "api": "./js/jianpian.js",
       "playerType": 1,
       "searchable": 1,
       "quickSearch": 0,
       "filterable": 1,
       "changeable": 1,
       "timeout": 60,
-      "ext": "http://39.108.238.168:20000",
-      "jar": "./jar/XYQ.jar"
+      "ext": {
+        "host": "http://api2.rinhome.com"
+      }
     },
     {
       "key": "豆瓣",
