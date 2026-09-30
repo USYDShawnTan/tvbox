@@ -23,7 +23,7 @@ https://gh-proxy.com/https://raw.githubusercontent.com/USYDShawnTan/tvbox/main/c
 | 名称 | 实现 | 说明 |
 | --- | --- | --- |
 | 🎬 爱看·快速 | `XYQ.jar / csp_Ikanbot` | 搜索 / 播放速度优先，部分原站封面可能缺失 |
-| ⚡ 优速 | `QuickJS / ikanbot-cover.js` | Ikanbot + 豆瓣高清海报 + 中文线路名 |
+| ⚡ 优速 | `QuickJS / ikanbot-cover.js` | Ikanbot 原版播放解析 + 搜索排序 / 豆瓣高清海报优化 |
 | 📚 豆瓣 | `pg.jar / csp_Douban` | 分类、榜单、评分、海报和影视资料 |
 | 📺 哔哩 | `QuickJS / bili.js` | Bilibili API，支持热门、搜索、详情、分 P 和播放 |
 
@@ -112,37 +112,17 @@ FongMi 竖版海报
 - 进程内缓存避免重复查询；
 - 豆瓣失败时保留 Ikanbot 原图兜底。
 
-### 线路
+### 播放解析
 
-优速不再限制线路数量。常用五条仍然优先显示并使用中文名：
+优速的播放解析已经恢复为最初的 Ikanbot QuickJS 逻辑：
 
-```text
-量子      ← lzm3u8
-非凡      ← ffm3u8
-优质      ← 1080zyk
-西瓜      ← xigua / xgm3u8
-快车      ← kcm3u8
-```
+- 不限制线路；
+- 不重排线路；
+- 不做自定义中文线路映射；
+- 不再二次拆解或重写播放地址；
+- 直接按 Ikanbot 返回的 `flag / url` 生成 FongMi 播放数据。
 
-之后继续追加 Ikanbot 返回的其它线路。常见 flag 会映射为中文名称，例如暴风、红牛、无尽、飞速、光速、极速、天空等；未知 flag 则保留原名。
-
-FongMi / TVBox 播放数据格式：
-
-```text
-线路之间：$$$
-同线路剧集之间：#
-剧集名称和地址之间：$
-```
-
-例如：
-
-```text
-vod_play_from:
-量子$$$非凡$$$优质
-
-vod_play_url:
-HD中字$https://example.com/a.m3u8$$$中字$https://example.com/b.m3u8$$$...
-```
+优速现在只在**搜索体验和海报**层做增强，播放部分尽量保持原样，降低兼容性风险。
 
 ## 哔哩
 
@@ -303,26 +283,3 @@ https://github.com/USYDShawnTan/tvbox/tree/1.2.0
 ```
 
 > 本仓库用于个人配置与技术研究。第三方站点、接口和 Spider 的可用性可能随时间变化。
-
-
-### Ikanbot 混合播放地址兼容
-
-部分 Ikanbot 线路会返回混合格式，例如：
-
-```text
-https://...$$HDTC中字$https://...$$TC$高清版$https://...
-```
-
-优速现在不再按第一个 `$` 生硬切分，而是优先识别 `http / https / ftp / magnet / xg` 等协议位置。协议之前的多个标签会合并成显示名称，例如：
-
-```text
-TC$高清版$https://example.com/a.m3u8
-```
-
-会规范成：
-
-```text
-TC 高清版$https://example.com/a.m3u8
-```
-
-这样不会把“高清版”等文字误拼进真实播放 URL。
