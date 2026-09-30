@@ -2,8 +2,9 @@ import cheerio from "assets://js/lib/cheerio.min.js";
 
 let host = "https://v.aikanbot.com";
 const UA = "Mozilla/5.0 (Linux; Android 11; TV) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36";
-const DOUBAN_TIMEOUT = 3000;
+const DOUBAN_TIMEOUT = 2500;
 const DOUBAN_CONCURRENCY = 3;
+const LINE_SEPARATOR = "$" + "$" + "$";
 const PREFERRED_LINES = [
   { name: "量子", flags: ["lzm3u8", "lz线路", "lz"] },
   { name: "非凡", flags: ["ffm3u8", "ff"] },
@@ -67,6 +68,71 @@ function upgradeDoubanImage(url) {
   return value;
 }
 
+function doubanImage(url) {
+  let value = upgradeDoubanImage(String(url || "").trim());
+  if (!value) return "";
+  if (value.startsWith("//")) value = "https:" + value;
+  if (!/^https?:\/\//i.test(value)) return "";
+  return value +
+    "@Referer=https://api.douban.com/@User-Agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/117.0.0.0 Safari/537.36";
+}
+
+function sourcePoster(url) {
+  const raw = String(url || "").trim();
+  if (!raw) return "";
+
+  // If Ikanbot already gives a Douban image, promote it to the large
+  // variant directly and skip a Frodo search request.
+  if (/doubanio\.com|douban\.com\/view\//i.test(raw)) {
+    return doubanImage(raw);
+  }
+
+  // Absolute source images are kept as the fast fallback.
+  if (/^https?:\/\//i.test(raw) || raw.startsWith("//")) return pic(raw);
+
+  // Relative / malformed poster paths are unreliable on the TV box;
+  // let Douban fill those instead of forcing the old image proxy.
+  return "";
+}
+
+function decorateSearchResult(item) {
+  const year = String(item.vod_year || "").trim();
+  const remark = String(item.vod_remarks || "").trim();
+  if (year && remark && !remark.includes(year)) item.vod_remarks = year + " · " + remark;
+  else if (year && !remark) item.vod_remarks = year;
+  return item;
+}
+
+function rankSearchResults(list, keyword) {
+  const q = normalizeTitle(keyword);
+  if (!q) return list;
+
+  return list
+    .map((item, index) => {
+      const title = normalizeTitle(item.vod_name);
+      let score = 4;
+      if (title === q) score = 0;
+      else if (title.startsWith(q)) score = 1;
+      else if (title.includes(q)) score = 2;
+      else if (q.includes(title) && title) score = 3;
+      return { item, index, score };
+    })
+    .sort((a, b) => a.score - b.score || a.index - b.index)
+    .map(x => x.item);
+}
+
+function dedupeSearchResults(list) {
+  const seen = new Set();
+  return list.filter(item => {
+    const title = normalizeTitle(item.vod_name);
+    const year = String(item.vod_year || "");
+    const key = title ? title + "::" + year : String(item.vod_id || "");
+    if (!key || seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+}
+
 async function fetchDoubanLargePic(type, id) {
   if (!id) return "";
   const kinds = [];
@@ -109,7 +175,7 @@ async function fetchDoubanLargePic(type, id) {
 async function doubanPoster(name, year = "") {
   const titleKey = String(name || "").trim();
   const yearKey = String(year || "").trim();
-  const cacheKey = titleKey + "::" + yearKey;
+  const cacheKey = normalizeTitle(titleKey) + "::" + yearKey;
   if (!titleKey) return "";
   if (doubanPosterCache.has(cacheKey)) return doubanPosterCache.get(cacheKey);
 
@@ -122,6 +188,7 @@ async function doubanPoster(name, year = "") {
 
     const res = await req(url, {
       method: "get",
+      timeout: DOUBAN_TIMEOUT,
       headers: {
         "Host": "frodo.douban.com",
         "Connection": "Keep-Alive",
@@ -206,9 +273,20 @@ async function doubanPoster(name, year = "") {
 async function fillDoubanPosters(list) {
   for (let i = 0; i < list.length; i += DOUBAN_CONCURRENCY) {
     const batch = list.slice(i, i + DOUBAN_CONCURRENCY);
+
     await Promise.all(batch.map(async item => {
+      const fast = sourcePoster(item._raw_pic);
+
+      // Douban-origin images can be upgraded locally with no extra API call.
+      if (fast && /doubanio\.com|douban\.com\/view\//i.test(String(item._raw_pic || ""))) {
+        item.vod_pic = fast;
+        delete item._raw_pic;
+        return;
+      }
+
       const poster = await doubanPoster(item.vod_name, item.vod_year || "");
-      if (poster) item.vod_pic = poster;
+      item.vod_pic = poster || fast || item.vod_pic || "";
+      delete item._raw_pic;
     }));
   }
   return list;
@@ -220,9 +298,10 @@ function addVod(list, seen, id, name, image, remarks, year = "") {
   list.push({
     vod_id: id,
     vod_name: name,
-    vod_pic: pic(image),
+    vod_pic: sourcePoster(image) || pic(image),
     vod_remarks: remarks || "",
-    vod_year: year || ""
+    vod_year: year || "",
+    _raw_pic: image || ""
   });
 }
 
@@ -362,11 +441,14 @@ async function search(wd, quick, pg) {
   pg = Math.max(1, parseInt(pg || "1", 10));
   const url = host + "/search?q=" + encodeURIComponent(wd) + (pg > 1 ? "&p=" + pg : "");
   const html = await get(url);
-  const list = parseList(html, true);
+  let list = parseList(html, true);
 
-  // Ikanbot provides the playable result; Douban supplies a stable poster.
-  // This mirrors the cover source used by csp_Douban rather than relying
-  // on Ikanbot's image CDN / anti-hotlink behavior.
+  // Search UX: exact-title matches first, remove same-title/year duplicates,
+  // and show year together with Ikanbot's original quality/status remark.
+  list = rankSearchResults(dedupeSearchResults(list), wd).map(decorateSearchResult);
+
+  // Poster UX: reuse/upgrade source Douban URLs without a network lookup;
+  // only run Frodo matching when the source poster is not already sufficient.
   await fillDoubanPosters(list);
 
   const $ = load(html);
@@ -396,11 +478,14 @@ async function detail(id) {
     $("div.item-root img:first").attr("data-src") ||
     $("div.item-root img:first").attr("src") || "";
 
+  const detailYear = $("div.detail .year:first").text().trim() || $("div.detail h3:nth-child(3)").text().trim();
+  const detailPoster = await doubanPoster(name, detailYear);
+
   const vod = {
     vod_id: id,
     vod_name: name,
-    vod_pic: pic(rawPic),
-    vod_year: $("div.detail .year:first").text().trim() || $("div.detail h3:nth-child(3)").text().trim(),
+    vod_pic: detailPoster || sourcePoster(rawPic) || pic(rawPic),
+    vod_year: detailYear,
     vod_area: $("div.detail .country:first").text().trim() || $("div.detail h3:nth-child(4)").text().trim(),
     vod_actor: $("div.detail .celebrity:first").text().trim() || $("div.detail h3:nth-child(5)").text().trim(),
     vod_content: $("meta[name='description']").attr("content") || $("span#line-tips").text().trim() || "",
@@ -495,9 +580,9 @@ async function detail(id) {
   }
 
   console.log("[ikanbot-cover] preferred lines=" + from.join(","));
-  // "$$" separates playback lines; "#" separates episodes within a line.
-  vod.vod_play_from = from.join("$$");
-  vod.vod_play_url = urls.join("$$");
+  // FongMi splits both fields on exactly three dollar signs.
+  vod.vod_play_from = from.join(LINE_SEPARATOR);
+  vod.vod_play_url = urls.join(LINE_SEPARATOR);
 
   return JSON.stringify({ list:[vod] });
 }
