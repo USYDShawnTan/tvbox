@@ -4,6 +4,13 @@ let host = "https://v.aikanbot.com";
 const UA = "Mozilla/5.0 (Linux; Android 11; TV) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36";
 const DOUBAN_TIMEOUT = 3000;
 const DOUBAN_CONCURRENCY = 3;
+const PREFERRED_LINES = [
+  { name: "lz", flags: ["lzm3u8", "lz线路", "lz"] },
+  { name: "ff", flags: ["ffm3u8", "ff"] },
+  { name: "1080zyk", flags: ["1080zyk", "1080zy"] },
+  { name: "xigua", flags: ["xigua", "xiguam3u8"] },
+  { name: "kc", flags: ["kcm3u8", "kc"] }
+];
 const doubanPosterCache = new Map();
 
 function abs(url) {
@@ -429,13 +436,28 @@ async function detail(id) {
 
   const from = [];
   const urls = [];
-  for (const [flag, values] of groups.entries()) {
-    from.push(String(flag).replace(/m3u8/gi, "线路"));
-    urls.push(values.join("#"));
+  const entries = Array.from(groups.entries()).map(([flag, values]) => ({
+    flag: String(flag),
+    lower: String(flag).toLowerCase(),
+    values
+  }));
+
+  for (const pref of PREFERRED_LINES) {
+    const hit = entries.find(entry =>
+      pref.flags.some(flag => entry.lower === String(flag).toLowerCase())
+    );
+    if (!hit) continue;
+
+    const merged = Array.from(new Set(hit.values.filter(Boolean)));
+    if (!merged.length) continue;
+
+    from.push(pref.name);
+    urls.push(merged.join("#"));
   }
 
-  vod.vod_play_from = from.join("$$$");
-  vod.vod_play_url = urls.join("$$$");
+  console.log("[ikanbot-cover] preferred lines=" + from.join(","));
+  vod.vod_play_from = from.join("$$");
+  vod.vod_play_url = urls.join("$$");
 
   return JSON.stringify({ list:[vod] });
 }
