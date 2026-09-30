@@ -38,16 +38,31 @@ jobs:
             "json/bili.json"
             "json/sambashare.txt"
             "lib/token.json"
+            "lib/drpy2.min.js"
             "list.txt"
           )
 
           for file in "${files[@]}"; do
             mkdir -p "$(dirname "$file")"
             tmp="$(mktemp)"
-            curl --fail --location --retry 3 --retry-delay 2               "$BASE/$file"               --output "$tmp"
+            curl --fail --location --retry 3 --retry-delay 2 \
+              "$BASE/$file" \
+              --output "$tmp"
             test -s "$tmp"
             mv "$tmp" "$file"
           done
+
+          mkdir -p js
+          tmp="$(mktemp)"
+          curl --fail --location --retry 3 --retry-delay 2 \
+            "$BASE/js/%E7%88%B1%E7%9C%8B%E6%9C%BA%E5%99%A8%E4%BA%BA.js" \
+            --output "$tmp"
+          test -s "$tmp"
+
+          # Ikanbot currently serves from www1. Keep upstream parsing rules,
+          # but patch the host locally so redirects do not break search.
+          sed -i 's#https://www\.ikanbot\.com#https://www1.ikanbot.com#g' "$tmp"
+          mv "$tmp" js/ikanbot.js
 
       - name: Validate config
         shell: bash
@@ -58,7 +73,10 @@ jobs:
           test -s json/bili.json
           test -s json/sambashare.txt
           test -s lib/token.json
+          test -s lib/drpy2.min.js
+          test -s js/ikanbot.js
           test -s list.txt
+          grep -q 'https://www1.ikanbot.com' js/ikanbot.js
 
       - name: Commit changes
         shell: bash
@@ -71,6 +89,15 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
 
-          git add jar/pg.jar json/douban.json json/bili.json json/sambashare.txt lib/token.json list.txt
+          git add \
+            jar/pg.jar \
+            json/douban.json \
+            json/bili.json \
+            json/sambashare.txt \
+            lib/token.json \
+            lib/drpy2.min.js \
+            js/ikanbot.js \
+            list.txt
+
           git commit -m "chore: sync upstream assets"
           git push
