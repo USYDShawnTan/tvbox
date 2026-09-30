@@ -82,8 +82,6 @@ jobs:
             json/bili.json \
             json/sambashare.txt \
             lib/token.json \
-            lib/drpy2.min.js \
-            js/ikanbot.js \
             list.txt
 
           git commit -m "chore: sync upstream assets"
