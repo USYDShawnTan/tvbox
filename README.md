@@ -22,7 +22,7 @@ https://gh-proxy.com/https://raw.githubusercontent.com/USYDShawnTan/tvbox/main/c
 | --- | --- | --- |
 | 🎬 爱看·快速 | `XYQ.jar / csp_Ikanbot` | 搜索和播放快；部分原站封面可能缺失 |
 | 🖼️ 爱看·高清封面 | `QuickJS / ikanbot-cover.js` | Ikanbot 搜索播放 + 豆瓣高清海报；请求更多，速度较慢 |
-| 📚 豆瓣 | `pg.jar / csp_Douban` | 分类、榜单、评分、海报和影视资料 |
+| 🧪 荐片 | `pg.jar / csp_Jianpian` | 新增测试源；国内向影视搜索 / 分类 / 播放 |\n| 📚 豆瓣 | `pg.jar / csp_Douban` | 分类、榜单、评分、海报和影视资料 |
 | 📺 哔哩 | `QuickJS / bili.js` | 直接调用 Bilibili API，不再依赖旧 `csp_Bili` 规则 |
 
 已经移除：
@@ -277,3 +277,36 @@ https://github.com/USYDShawnTan/tvbox/tree/1.2.0
 ```
 
 
+
+
+## 荐片测试
+
+当前新增一个独立测试入口：
+
+```text
+🧪 荐片
+  ↓
+pg.jar
+  ↓
+csp_Jianpian
+  ↓
+json/jianpian.json
+```
+
+配置核心：
+
+```json
+{
+  "api": "csp_Jianpian",
+  "playerType": 1,
+  "searchable": 1,
+  "quickSearch": 0,
+  "filterable": 1,
+  "timeout": 60,
+  "ext": "./json/jianpian.json$$$1"
+}
+```
+
+先关闭 `quickSearch`，避免在确认稳定性前加入快速聚合搜索。
+
+FongMi 当前代码本身包含 JianPian extractor / P2P 支持，因此先直接使用现有 `pg.jar` 的 `csp_Jianpian` 实现测试，不额外引入本地代理或 token。
