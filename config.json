@@ -32,25 +32,6 @@
       }
     },
     {
-      "key": "JianpianTest",
-      "name": "🧪 荐片",
-      "type": 3,
-      "api": "./js/jianpian.js",
-      "playerType": 1,
-      "searchable": 1,
-      "quickSearch": 0,
-      "filterable": 1,
-      "changeable": 1,
-      "timeout": 60,
-      "ext": {
-        "host": "https://api.ztcgi.com"
-      },
-      "style": {
-        "type": "rect",
-        "ratio": 0.75
-      }
-    },
-    {
       "key": "豆瓣",
       "name": "📚 豆瓣",
       "type": 3,
