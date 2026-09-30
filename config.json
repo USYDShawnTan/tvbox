@@ -38,17 +38,6 @@
       }
     },
     {
-      "key": "ddys",
-      "name": "🎞️ 低端",
-      "type": 3,
-      "api": "csp_Ddys",
-      "quickSearch": 1,
-      "changeable": 1,
-      "filterable": 1,
-      "timeout": 60,
-      "ext": "./lib/token.json$$$https://ddys.pro/$$$proxy$$$1$$$"
-    },
-    {
       "key": "豆瓣",
       "name": "📚 豆瓣",
       "type": 3,
@@ -57,47 +46,6 @@
       "searchable": 0,
       "changeable": 1,
       "ext": "./json/douban.json"
-    },
-    {
-      "key": "csp_Bili",
-      "name": "📺 哔哩",
-      "type": 3,
-      "api": "csp_Bili",
-      "searchable": 1,
-      "quickSearch": 1,
-      "filterable": 1,
-      "changeable": 0,
-      "style": {
-        "type": "rect",
-        "ratio": 1.755
-      },
-      "ext": {
-        "json": "./json/bili.json",
-        "cookie": ""
-      }
-    },
-    {
-      "key": "Local",
-      "name": "💾 本地",
-      "type": 3,
-      "api": "csp_Local",
-      "quickSearch": 1,
-      "changeable": 1,
-      "filterable": 1,
-      "timeout": 60,
-      "ext": "null$$$null$$$1"
-    },
-    {
-      "key": "SambaShare",
-      "name": "🗄️ NAS / Samba",
-      "type": 3,
-      "api": "csp_SambaShare",
-      "searchable": 0,
-      "quickSearch": 0,
-      "changeable": 0,
-      "filterable": 0,
-      "timeout": 60,
-      "ext": "./lib/token.json$$$./json/sambashare.txt"
     }
   ]
 }
