@@ -8,7 +8,7 @@
 - Spider 与必要规则文件跟随 `gaotianliuyun/gao` 自动更新。
 - `config.json` 由本仓库自己维护，不会被上游覆盖。
 - GitHub Actions 每 6 小时检查一次；只有文件发生变化才提交。
-- Ikanbot 使用独立 QuickJS Spider，不依赖 `pg.jar` 或 `drpy2.min.js`。
+- Ikanbot 单独使用上游 `XYQ.jar`，其他 JAR 站点继续使用 `pg.jar`。
 
 ## 配置地址
 
@@ -28,16 +28,18 @@ https://raw.githubusercontent.com/USYDShawnTan/tvbox/main/config.json
 
 ## Ikanbot
 
-Ikanbot 当前直接使用：
+Ikanbot 当前跟随高天流云 `XYQ.json` 的实现：
 
 ```text
-js/ikanbot-standalone.js
+jar/XYQ.jar
   ↓
-https://www1.ikanbot.com
+csp_Ikanbot
+  ↓
+https://v.aikanbot.com
 ```
 
-该 Spider 只依赖 FongMi 自带的 QuickJS 与 Cheerio，避免 `drpy2.min.js`
-继续加载第三方远程模块导致初始化失败。搜索、详情和播放逻辑均在本仓库可直接维护。
+这里使用站点级 `jar`，因此不会影响其他仍依赖 `pg.jar` 的站点。
+同时去掉了 `$$proxy`，避免依赖盒子本地未启动的 SOCKS5 代理。
 
 ## 自动同步文件
 
@@ -45,6 +47,7 @@ https://www1.ikanbot.com
 
 ```text
 jar/pg.jar
+jar/XYQ.jar
 json/douban.json
 json/bili.json
 json/sambashare.txt
