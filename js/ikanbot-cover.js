@@ -2,6 +2,7 @@ import cheerio from "assets://js/lib/cheerio.min.js";
 
 let host = "https://v.aikanbot.com";
 const UA = "Mozilla/5.0 (Linux; Android 11; TV) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36";
+const doubanPosterCache = new Map();
 
 function abs(url) {
   if (!url) return "";
@@ -37,6 +38,59 @@ async function get(url, extra = {}) {
 
 function load(html) {
   return cheerio.load(html || "");
+}
+
+function normalizeTitle(value) {
+  return String(value || "")
+    .toLowerCase()
+    .replace(/[\s·•・:：!！?？,，.。\-—_()（）\[\]【】《》"'“”‘’]/g, "");
+}
+
+async function doubanPoster(name) {
+  const key = String(name || "").trim();
+  if (!key) return "";
+  if (doubanPosterCache.has(key)) return doubanPosterCache.get(key);
+
+  let result = "";
+  try {
+    const url = "https://movie.douban.com/j/subject_suggest?q=" + encodeURIComponent(key);
+    const res = await req(url, {
+      method: "get",
+      headers: {
+        "User-Agent": UA,
+        "Referer": "https://movie.douban.com/"
+      }
+    });
+
+    const data = JSON.parse(res && res.content ? res.content : "[]");
+    if (Array.isArray(data) && data.length) {
+      const target = normalizeTitle(key);
+      let hit = data.find(item => normalizeTitle(item && item.title) === target);
+
+      if (!hit) {
+        hit = data.find(item => {
+          const title = normalizeTitle(item && item.title);
+          return title && (title.includes(target) || target.includes(title));
+        });
+      }
+
+      if (!hit) hit = data[0];
+      if (hit && hit.img) result = String(hit.img);
+    }
+  } catch (e) {
+    console.log("[ikanbot-cover] douban poster lookup failed: " + key + " " + e.message);
+  }
+
+  doubanPosterCache.set(key, result);
+  return result;
+}
+
+async function fillDoubanPosters(list) {
+  for (const item of list) {
+    const poster = await doubanPoster(item.vod_name);
+    if (poster) item.vod_pic = poster;
+  }
+  return list;
 }
 
 function addVod(list, seen, id, name, image, remarks) {
@@ -183,6 +237,12 @@ async function search(wd, quick, pg) {
   const url = host + "/search?q=" + encodeURIComponent(wd) + (pg > 1 ? "&p=" + pg : "");
   const html = await get(url);
   const list = parseList(html, true);
+
+  // Ikanbot provides the playable result; Douban supplies a stable poster.
+  // This mirrors the cover source used by csp_Douban rather than relying
+  // on Ikanbot's image CDN / anti-hotlink behavior.
+  await fillDoubanPosters(list);
+
   console.log("[ikanbot-cover] search=" + wd + " results=" + list.length);
   return JSON.stringify({
     page: pg,
