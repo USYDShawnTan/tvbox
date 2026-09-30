@@ -57,6 +57,7 @@ jobs:
           test -s json/douban.json
           test -s js/ikanbot-cover.js
           test -s js/bili.js
+          test -s js/jianpian.js
 
       - name: Commit changes
         shell: bash
