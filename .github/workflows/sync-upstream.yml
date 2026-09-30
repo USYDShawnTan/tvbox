@@ -36,7 +36,6 @@ jobs:
             "jar/pg.jar"
             "jar/XYQ.jar"
             "json/douban.json"
-            "json/jianpian.json"
           )
 
           for file in "${files[@]}"; do
@@ -56,7 +55,6 @@ jobs:
           test -s jar/pg.jar
           test -s jar/XYQ.jar
           test -s json/douban.json
-          test -s json/jianpian.json
           test -s js/ikanbot-cover.js
           test -s js/bili.js
 
@@ -74,8 +72,7 @@ jobs:
           git add \
             jar/pg.jar \
             jar/XYQ.jar \
-            json/douban.json \
-            json/jianpian.json
+            json/douban.json
 
           git commit -m "chore: sync upstream assets"
           git push
