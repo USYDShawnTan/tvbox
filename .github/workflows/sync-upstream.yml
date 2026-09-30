@@ -1,0 +1,71 @@
+name: Sync upstream
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "17 */6 * * *"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: sync-upstream
+  cancel-in-progress: true
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Sync selected upstream files
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          BASE="https://raw.githubusercontent.com/gaotianliuyun/gao/master"
+
+          files=(
+            "jar/pg.jar"
+            "json/douban.json"
+            "json/bili.json"
+            "json/sambashare.txt"
+            "lib/token.json"
+            "list.txt"
+          )
+
+          for file in "${files[@]}"; do
+            mkdir -p "$(dirname "$file")"
+            tmp="$(mktemp)"
+            curl --fail --location --retry 3 --retry-delay 2               "$BASE/$file"               --output "$tmp"
+            test -s "$tmp"
+            mv "$tmp" "$file"
+          done
+
+      - name: Validate config
+        shell: bash
+        run: |
+          python -m json.tool config.json >/dev/null
+          test -s jar/pg.jar
+          test -s json/douban.json
+          test -s json/bili.json
+          test -s json/sambashare.txt
+          test -s lib/token.json
+          test -s list.txt
+
+      - name: Commit changes
+        shell: bash
+        run: |
+          if git diff --quiet && git status --porcelain | grep -q '^$'; then
+            echo "No upstream changes."
+            exit 0
+          fi
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          git add jar/pg.jar json/douban.json json/bili.json json/sambashare.txt lib/token.json list.txt
+          git commit -m "chore: sync upstream assets"
+          git push
