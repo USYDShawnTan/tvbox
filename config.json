@@ -25,6 +25,10 @@
       "changeable": 1,
       "ext": {
         "host": "https://v.aikanbot.com"
+      },
+      "style": {
+        "type": "rect",
+        "ratio": 0.75
       }
     },
     {
