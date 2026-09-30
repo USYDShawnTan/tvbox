@@ -399,3 +399,34 @@ vod_play_url:  ...$$$...$$$...
 ```
 
 代码里使用运行时拼接的 `LINE_SEPARATOR`，避免再次误写成两个美元符号。
+
+
+### 荐片第三版
+
+前两版使用的 `api2.rinhome.com` 已经明显落后于当前公开实现，表现为“分类存在但内容为空”。
+
+当前测试版已改为较新的 API：
+
+```text
+https://api.ztcgi.com
+```
+
+并按当前接口重新实现：
+
+```text
+/api/v2/settings/homeCategory
+/api/v2/settings/resourceDomainConfig
+/api/slide/list
+/api/crumb/list
+/api/video/detailv2
+/api/v2/search/videoV2
+```
+
+关键变化：
+
+- 分类参数改为当前使用的 `fcate_pid`；
+- 图片域名通过 `resourceDomainConfig` 动态获取；
+- 详情改用 `video/detailv2`；
+- 搜索改用 `v2/search/videoV2`；
+- 播放线路直接解析 `source_list_source`；
+- 非 HTTP / 非 m3u8/mp4 地址继续交给 FongMi 自带 JianPian extractor。
