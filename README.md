@@ -187,3 +187,93 @@ adb logcat | grep -Ei '\[bili\]|TV-search|QuickJS|Exception'
 ```
 
 因此高清版仍然比快速版请求更多，但正常情况下网络请求数会明显下降。
+
+## 今天用到的影视相关链接
+
+下面集中记录今天实际用到或确认过的影视 App、配置和上游项目，方便以后直接回来找。
+
+### FongMi / TV
+
+项目主页：
+
+```text
+https://github.com/FongMi/TV
+```
+
+Release 下载页：
+
+```text
+https://github.com/FongMi/TV/releases
+```
+
+当前这台 **CM311-1a-YST** 是 32 位 Android 用户空间，安装包应优先选择：
+
+```text
+leanback-armeabi_v7a.apk
+```
+
+不要选：
+
+```text
+arm64-v8a
+```
+
+### 影视仓 / TVBox
+
+今天参考过的仓库目录：
+
+```text
+https://github.com/youhunwl/TVAPP/tree/refs/heads/main/TVBox
+```
+
+这里包含影视仓 / TVBox 相关安装包和版本。
+
+### 高天流云 TVBox 配置上游
+
+本仓库部分 JAR 和豆瓣配置的上游来源：
+
+```text
+https://github.com/gaotianliuyun/gao
+```
+
+当前自动同步的内容主要包括：
+
+```text
+jar/pg.jar
+jar/XYQ.jar
+json/douban.json
+```
+
+### 本仓库
+
+仓库主页：
+
+```text
+https://github.com/USYDShawnTan/tvbox
+```
+
+FongMi 配置地址：
+
+```text
+https://raw.githubusercontent.com/USYDShawnTan/tvbox/main/config.json
+```
+
+GitHub Raw 访问不稳定时：
+
+```text
+https://gh-proxy.com/https://raw.githubusercontent.com/USYDShawnTan/tvbox/main/config.json
+```
+
+### 当前稳定版本
+
+```text
+1.2.0
+```
+
+Tag：
+
+```text
+https://github.com/USYDShawnTan/tvbox/tree/1.2.0
+```
+
+
