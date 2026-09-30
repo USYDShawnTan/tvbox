@@ -323,11 +323,11 @@ http://39.108.238.168:20000
 仍然保留 Ikanbot 搜索 / 播放和豆瓣高清海报逻辑，但播放线路只保留以下五组，并按这个顺序展示：
 
 ```text
-lz        ← lzm3u8
-ff        ← ffm3u8
-1080zyk   ← 1080zyk
-xigua     ← xigua
-kc        ← kcm3u8
+量子      ← lzm3u8
+非凡      ← ffm3u8
+优质      ← 1080zyk
+西瓜      ← xigua / xgm3u8
+快车      ← kcm3u8
 ```
 
 其它 Ikanbot 返回线路不再出现在详情页，避免线路列表过长。
@@ -353,3 +353,26 @@ api2.rinhome.com
 ```
 
 不再依赖 `XYQ.jar` 内部的动态域名发现逻辑。脚本已经加入分类、搜索、详情、常见播放线路解析以及 FongMi JianPian / ftp extractor 兼容处理。
+
+
+### 优速线路格式修复
+
+FongMi / TVBox 的播放数据分隔符是：
+
+```text
+线路之间：$$$
+同线路剧集之间：#
+剧集名称和地址之间：$
+```
+
+优速第一版误用了 `$$` 作为线路分隔符，会把下一条线路名称和 URL 拼进上一条播放地址。
+
+当前已经改为逐条解析 Ikanbot 的 `{ flag, name, url }`，生成：
+
+```text
+HD中字$https://example.com/a.m3u8#第2集$https://example.com/b.m3u8
+$$$
+另一条线路...
+```
+
+并固定使用中文线路名：量子、非凡、优质、西瓜、快车。
