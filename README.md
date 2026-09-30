@@ -324,9 +324,11 @@ js/ikanbot-cover.js
   ↓
 https://v.aikanbot.com
   ↓
-https://img-p.aikanbot.com/proxy?url=...
+原始封面 URL + @Headers=...
 ```
 
-主要解决部分搜索结果返回了图片地址，但电视端直接加载失败的问题。
+第一版尝试统一走 `img-p.aikanbot.com` 图片代理，但在 CM311-1a-YST 上测试为全部封面失败。
+当前改为沿用新版 Ikanbot JAR 的思路：保留原始封面 URL，并追加 FongMi 支持的 `@Headers`，
+携带 User-Agent / Referer 请求图片。
 
 该测试源不会替换原来的 `🎬 爱看`，确认搜索、封面、详情和播放都正常后再考虑升级为默认入口。
