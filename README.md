@@ -4,6 +4,8 @@
 
 已在 **CM311-1a-YST + FongMi Leanback** 环境验证。
 
+当前原则：**只保留实际可用、自己验证过的入口。**
+
 ## 配置地址
 
 ```text
@@ -20,10 +22,10 @@ https://gh-proxy.com/https://raw.githubusercontent.com/USYDShawnTan/tvbox/main/c
 
 | 名称 | 实现 | 说明 |
 | --- | --- | --- |
-| 🎬 爱看·快速 | `XYQ.jar / csp_Ikanbot` | 搜索和播放快；部分原站封面可能缺失 |
-| ⚡ 优速 | `QuickJS / ikanbot-cover.js` | Ikanbot + 豆瓣高清海报；只保留 lz / ff / 1080zyk / xigua / kc 线路 |
-| 🧪 荐片 | `QuickJS / jianpian.js` | 直接调用荐片 API；继续测试分类 / 搜索 / 播放 |
-| 📺 哔哩 | `QuickJS / bili.js` | 直接调用 Bilibili API，不再依赖旧 `csp_Bili` 规则 |
+| 🎬 爱看·快速 | `XYQ.jar / csp_Ikanbot` | 搜索 / 播放速度优先，部分原站封面可能缺失 |
+| ⚡ 优速 | `QuickJS / ikanbot-cover.js` | Ikanbot + 豆瓣高清海报 + 精简播放线路 |
+| 📚 豆瓣 | `pg.jar / csp_Douban` | 分类、榜单、评分、海报和影视资料 |
+| 📺 哔哩 | `QuickJS / bili.js` | Bilibili API，支持热门、搜索、详情、分 P 和播放 |
 
 已经移除：
 
@@ -32,59 +34,132 @@ https://gh-proxy.com/https://raw.githubusercontent.com/USYDShawnTan/tvbox/main/c
 💾 本地
 🗄️ NAS / Samba
 📡 直播
+🧪 荐片
 ```
 
-## 爱看为什么保留两个？
+荐片先后测试过旧 JAR、动态域名方案、`api2.rinhome.com` 和 `api.ztcgi.com`，在当前盒子环境里始终无法稳定取得分类内容，因此不再保留实验代码和配置。
 
-高清封面版需要额外请求豆瓣匹配影片并获取 `pic.large`，网络较慢时容易增加搜索耗时。
-
-所以暂时拆成两个独立入口：
+## 爱看·快速
 
 ```text
-🎬 爱看·快速
-  └── Ikanbot 原生搜索 / 播放
-      └── 速度优先
-
-🖼️ 爱看·高清封面
-  ├── Ikanbot 搜索 / 播放
-  └── 豆瓣 Frodo API 补高清封面
-      └── 显示效果优先
+FongMi
+  ↓
+config.json
+  ↓
+jar/XYQ.jar
+  ↓
+csp_Ikanbot
+  ↓
+https://v.aikanbot.com
 ```
 
-高清版设置 `quickSearch: 0`，避免参与快速搜索。
+核心配置：
 
-## 哔哩修复
+```json
+{
+  "key": "Ikanbot",
+  "name": "🎬 爱看·快速",
+  "type": 3,
+  "api": "csp_Ikanbot",
+  "jar": "./jar/XYQ.jar",
+  "ext": "https://v.aikanbot.com"
+}
+```
 
-之前的 B 站入口使用：
+优点是简单、快、稳定；缺点是搜索结果部分封面可能缺失。
+
+## ⚡ 优速
+
+优速是基于 Ikanbot 自己维护的 QuickJS 版本：
 
 ```text
-pg.jar
-  ↓
-csp_Bili
-  ↓
-json/bili.json
+Ikanbot
+  ├── 分类 / 搜索
+  ├── 详情 / 播放
+  └── 原始片源
+
+豆瓣 Frodo API
+  └── 高清海报
 ```
 
-在当前盒子环境中无法正常打开。
+### 海报
 
-现在改成仓库自带的：
+搜索结果会尽量使用豆瓣高清封面：
+
+```text
+Ikanbot 返回结果
+  ↓
+标题 + 年份匹配豆瓣
+  ↓
+优先 pic.large
+  ↓
+FongMi 竖版海报
+```
+
+当前优化：
+
+- 标题完全匹配优先；
+- 同标题 + 同年份结果去重；
+- 年份会合并到状态信息里；
+- 卡片使用 `rect / 0.75` 竖版比例；
+- 已有豆瓣图片时直接升级大图，减少额外请求；
+- 豆瓣请求 2.5 秒超时；
+- 每批 3 条并发；
+- 进程内缓存避免重复查询；
+- 豆瓣失败时保留 Ikanbot 原图兜底。
+
+### 线路
+
+优速只保留五条常用线路：
+
+```text
+量子      ← lzm3u8
+非凡      ← ffm3u8
+优质      ← 1080zyk
+西瓜      ← xigua / xgm3u8
+快车      ← kcm3u8
+```
+
+其余 Ikanbot 返回线路不展示。
+
+FongMi / TVBox 播放数据格式：
+
+```text
+线路之间：$$$
+同线路剧集之间：#
+剧集名称和地址之间：$
+```
+
+例如：
+
+```text
+vod_play_from:
+量子$$$非凡$$$优质
+
+vod_play_url:
+HD中字$https://example.com/a.m3u8$$$中字$https://example.com/b.m3u8$$$...
+```
+
+## 哔哩
+
+之前的旧 `csp_Bili` 在当前盒子环境无法正常使用，因此改成仓库自带：
 
 ```text
 js/bili.js
   ↓
-Bilibili 官方 Web API
+Bilibili Web API
 ```
 
-当前实现包含：
+目前支持：
 
 - 热门视频
-- 纪录片 / 知识 / 科技 / 音乐 / 影视分类搜索
+- 纪录片 / 知识 / 科技 / 音乐 / 影视分类
 - 关键词搜索
-- 视频详情和分 P
-- 直接获取播放地址
-- 播放时自动附带 Bilibili Referer / User-Agent
+- 视频详情
+- 分 P
+- 直接播放
 
-默认是未登录模式：
+默认未登录：
 
 ```json
 "ext": {
@@ -92,17 +167,32 @@ Bilibili 官方 Web API
 }
 ```
 
-如果 Bilibili 后续对搜索或高清画质加强风控，可以再填 Cookie，不需要改 Spider 代码。
+## 豆瓣
 
-## 壁纸
+豆瓣主要作为影视元数据源，而不是主播放源：
+
+- 热门电影 / 剧集
+- 分类和榜单
+- 海报
+- 评分
+- 年份、地区、演员等资料
+- 给优速补高清海报
 
 当前：
+
+```json
+{
+  "api": "csp_Douban",
+  "searchable": 0,
+  "ext": "./json/douban.json"
+}
+```
+
+## 壁纸
 
 ```text
 https://picsum.photos/1920/1080?blur=1
 ```
-
-使用 16:9 随机高分辨率照片，比原来的渐变壁纸更适合电视背景。
 
 ## 当前目录
 
@@ -114,8 +204,7 @@ tvbox/
 │   └── XYQ.jar
 ├── js/
 │   ├── bili.js
-│   ├── ikanbot-cover.js
-│   └── jianpian.js
+│   └── ikanbot-cover.js
 ├── json/
 │   └── douban.json
 ├── .github/
@@ -126,7 +215,7 @@ tvbox/
 
 ## 自动同步
 
-每 6 小时只同步仍然需要的上游文件：
+每 6 小时同步：
 
 ```text
 jar/pg.jar
@@ -134,7 +223,7 @@ jar/XYQ.jar
 json/douban.json
 ```
 
-`config.json`、`js/bili.js`、`js/ikanbot-cover.js` 由本仓库自己维护。
+`config.json`、`js/bili.js` 和 `js/ikanbot-cover.js` 由本仓库自己维护。
 
 ## 调试
 
@@ -144,13 +233,13 @@ json/douban.json
 adb shell am force-stop com.fongmi.android.tv
 ```
 
-爱看日志：
+爱看 / 优速：
 
 ```bash
 adb logcat | grep -Ei 'Ikanbot|ikanbot-cover|TV-search|QuickJS|Exception'
 ```
 
-哔哩日志：
+哔哩：
 
 ```bash
 adb logcat | grep -Ei '\[bili\]|TV-search|QuickJS|Exception'
@@ -160,38 +249,10 @@ adb logcat | grep -Ei '\[bili\]|TV-search|QuickJS|Exception'
 
 - `1.0.0`：Ikanbot 搜索 / 播放稳定版。
 - `1.1.0`：增加豆瓣高清封面补全。
-- `main`：快速 / 高清版分离，移除低端、本地、NAS、直播，Bilibili 改为独立 QuickJS API 实现。
-
-> 本仓库用于个人配置与技术研究。第三方站点和接口的可用性可能随时间变化。
-
-
-## 爱看性能优化
-
-高清封面版最初对每条搜索结果串行执行：
-
-```text
-豆瓣搜索
-→ 豆瓣详情
-→ 下一条
-```
-
-搜索结果较多时容易超时。
-
-当前 main 已优化为：
-
-```text
-每批 3 条并发
-→ 优先直接使用豆瓣搜索结果中的 pic.large / 可升级大图 URL
-→ 只有搜索结果完全没有图片时才请求豆瓣详情
-→ 单次豆瓣请求超时 3 秒
-→ 标题 + 年份优先匹配，降低同名作品错图概率
-```
-
-因此高清版仍然比快速版请求更多，但正常情况下网络请求数会明显下降。
+- `1.2.0`：爱看性能优化、Bilibili 修复和整体精简。
+- `main`：继续维护优速搜索 / 海报 / 线路体验。
 
 ## 今天用到的影视相关链接
-
-下面集中记录今天实际用到或确认过的影视 App、配置和上游项目，方便以后直接回来找。
 
 ### FongMi / TV
 
@@ -201,232 +262,40 @@ adb logcat | grep -Ei '\[bili\]|TV-search|QuickJS|Exception'
 https://github.com/FongMi/TV
 ```
 
-Release 下载页：
+Release：
 
 ```text
 https://github.com/FongMi/TV/releases
 ```
 
-当前这台 **CM311-1a-YST** 是 32 位 Android 用户空间，安装包应优先选择：
+当前 CM311-1a-YST 使用：
 
 ```text
 leanback-armeabi_v7a.apk
 ```
 
-不要选：
-
-```text
-arm64-v8a
-```
-
 ### 影视仓 / TVBox
-
-今天参考过的仓库目录：
 
 ```text
 https://github.com/youhunwl/TVAPP/tree/refs/heads/main/TVBox
 ```
 
-这里包含影视仓 / TVBox 相关安装包和版本。
-
-### 高天流云 TVBox 配置上游
-
-本仓库部分 JAR 和豆瓣配置的上游来源：
+### 高天流云上游
 
 ```text
 https://github.com/gaotianliuyun/gao
 ```
 
-当前自动同步的内容主要包括：
-
-```text
-jar/pg.jar
-jar/XYQ.jar
-json/douban.json
-```
-
 ### 本仓库
-
-仓库主页：
 
 ```text
 https://github.com/USYDShawnTan/tvbox
 ```
 
-FongMi 配置地址：
-
-```text
-https://raw.githubusercontent.com/USYDShawnTan/tvbox/main/config.json
-```
-
-GitHub Raw 访问不稳定时：
-
-```text
-https://gh-proxy.com/https://raw.githubusercontent.com/USYDShawnTan/tvbox/main/config.json
-```
-
-### 当前稳定版本
-
-```text
-1.2.0
-```
-
-Tag：
+当前稳定 Tag：
 
 ```text
 https://github.com/USYDShawnTan/tvbox/tree/1.2.0
 ```
 
-
-
-
-## 荐片测试
-
-第一版使用了 `pg.jar / csp_Jianpian + json/jianpian.json`，在当前盒子上出现分类无法加载。
-
-排查后发现当前较新的 JianPian 实现已经不依赖这份旧过滤 JSON；高天流云当前 `XYQ.json` 使用的是：
-
-```text
-XYQ.jar
-  ↓
-csp_JianPian
-  ↓
-http://39.108.238.168:20000
-```
-
-因此测试入口已切换到同样的实现：
-
-```json
-{
-  "api": "csp_JianPian",
-  "jar": "./jar/XYQ.jar",
-  "playerType": 1,
-  "searchable": 1,
-  "quickSearch": 0,
-  "filterable": 1,
-  "timeout": 60,
-  "ext": "http://39.108.238.168:20000"
-}
-```
-
-原来的 `json/jianpian.json` 不再参与配置。
-
-
-## 优速线路
-
-原来的 `爱看·高清封面` 已改名为：
-
-```text
-⚡ 优速
-```
-
-仍然保留 Ikanbot 搜索 / 播放和豆瓣高清海报逻辑，但播放线路只保留以下五组，并按这个顺序展示：
-
-```text
-量子      ← lzm3u8
-非凡      ← ffm3u8
-优质      ← 1080zyk
-西瓜      ← xigua / xgm3u8
-快车      ← kcm3u8
-```
-
-其它 Ikanbot 返回线路不再出现在详情页，避免线路列表过长。
-
-## 荐片继续测试
-
-荐片前两版分别尝试了旧 `pg.jar` 过滤配置和当前 `XYQ.jar / csp_JianPian`。后者能显示分类但分类内容为空。
-
-继续排查后发现，公开的旧版 Jianpian 实现直接调用：
-
-```text
-http://api2.rinhome.com
-```
-
-并使用荐片 App 请求头访问 `/api/crumb/list`、`/api/video/search` 和 `/api/node/detail`。
-
-因此当前测试版改为仓库自己的：
-
-```text
-js/jianpian.js
-  ↓
-api2.rinhome.com
-```
-
-不再依赖 `XYQ.jar` 内部的动态域名发现逻辑。脚本已经加入分类、搜索、详情、常见播放线路解析以及 FongMi JianPian / ftp extractor 兼容处理。
-
-
-### 优速线路格式修复
-
-FongMi / TVBox 的播放数据分隔符是：
-
-```text
-线路之间：$$$
-同线路剧集之间：#
-剧集名称和地址之间：$
-```
-
-优速第一版误用了 `$$` 作为线路分隔符，会把下一条线路名称和 URL 拼进上一条播放地址。
-
-当前已经改为逐条解析 Ikanbot 的 `{ flag, name, url }`，生成：
-
-```text
-HD中字$https://example.com/a.m3u8#第2集$https://example.com/b.m3u8
-$$$
-另一条线路...
-```
-
-并固定使用中文线路名：量子、非凡、优质、西瓜、快车。
-
-
-## 优速搜索与海报优化
-
-当前优速继续优化了搜索和海报体验：
-
-- 搜索结果优先显示标题完全匹配，其次是前缀匹配和包含匹配；
-- 同标题 + 同年份结果去重，减少重复卡片；
-- 年份会合并到状态文字里，方便区分同名作品；
-- 卡片明确使用 FongMi 的竖版 `rect / 0.75` 海报比例；
-- Ikanbot 如果已经返回豆瓣图片地址，会直接把缩略图升级成大图，不再额外请求豆瓣搜索；
-- 其它结果继续通过豆瓣 Frodo 补海报，并保留 Ikanbot 原图作为兜底；
-- 详情页也会复用同一套豆瓣高清海报，搜索页和详情页视觉保持一致；
-- 豆瓣查询超时缩短到 2.5 秒，并继续使用 3 路并发与进程内缓存。
-
-另外播放线路分隔符已按照 FongMi 源码要求固定为三个美元符号：
-
-```text
-vod_play_from: 量子$$$非凡$$$优质
-vod_play_url:  ...$$$...$$$...
-```
-
-代码里使用运行时拼接的 `LINE_SEPARATOR`，避免再次误写成两个美元符号。
-
-
-### 荐片第三版
-
-前两版使用的 `api2.rinhome.com` 已经明显落后于当前公开实现，表现为“分类存在但内容为空”。
-
-当前测试版已改为较新的 API：
-
-```text
-https://api.ztcgi.com
-```
-
-并按当前接口重新实现：
-
-```text
-/api/v2/settings/homeCategory
-/api/v2/settings/resourceDomainConfig
-/api/slide/list
-/api/crumb/list
-/api/video/detailv2
-/api/v2/search/videoV2
-```
-
-关键变化：
-
-- 分类参数改为当前使用的 `fcate_pid`；
-- 图片域名通过 `resourceDomainConfig` 动态获取；
-- 详情改用 `video/detailv2`；
-- 搜索改用 `v2/search/videoV2`；
-- 播放线路直接解析 `source_list_source`；
-- 非 HTTP / 非 m3u8/mp4 地址继续交给 FongMi 自带 JianPian extractor。
+> 本仓库用于个人配置与技术研究。第三方站点、接口和 Spider 的可用性可能随时间变化。
