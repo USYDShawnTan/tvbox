@@ -36,6 +36,8 @@ jobs:
             "jar/pg.jar"
             "jar/XYQ.jar"
             "json/douban.json"
+            "lib/drpy2.min.js"
+            "js/4k剧院.js"
           )
 
           for file in "${files[@]}"; do
@@ -57,6 +59,8 @@ jobs:
           test -s json/douban.json
           test -s js/ikanbot-cover.js
           test -s js/bili.js
+          test -s lib/drpy2.min.js
+          test -s js/4k剧院.js
 
       - name: Commit changes
         shell: bash
@@ -72,7 +76,9 @@ jobs:
           git add \
             jar/pg.jar \
             jar/XYQ.jar \
-            json/douban.json
+            json/douban.json \
+            lib/drpy2.min.js \
+            js/4k剧院.js
 
           git commit -m "chore: sync upstream assets"
           git push
