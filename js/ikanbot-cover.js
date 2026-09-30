@@ -12,6 +12,57 @@ const PREFERRED_LINES = [
   { name: "西瓜", flags: ["xigua", "xiguam3u8", "xgm3u8"] },
   { name: "快车", flags: ["kcm3u8", "kc"] }
 ];
+
+const LINE_NAMES = {
+  "dyttm3u8":"天堂",
+  "360zy":"360",
+  "iqym3u8":"爱奇艺",
+  "mtm3u8":"茅台",
+  "subm3u8":"速播",
+  "nnm3u8":"牛牛",
+  "okm3u8":"欧克",
+  "tym3u8":"TY",
+  "yym3u8":"歪歪",
+  "bfzym3u8":"暴风",
+  "1080zyk":"优质",
+  "kuaikan":"快看",
+  "lzm3u8":"量子",
+  "ffm3u8":"非凡",
+  "snm3u8":"索尼",
+  "qhm3u8":"奇虎",
+  "hym3u8":"虎牙",
+  "haiwaikan":"海外看",
+  "gsm3u8":"光速",
+  "zuidam3u8":"最大",
+  "bjm3u8":"八戒",
+  "wolong":"卧龙",
+  "xlm3u8":"新浪",
+  "yhm3u8":"樱花",
+  "tkm3u8":"天空",
+  "jsm3u8":"极速",
+  "wjm3u8":"无尽",
+  "sdm3u8":"闪电",
+  "kcm3u8":"快车",
+  "jinyingm3u8":"金鹰",
+  "fsm3u8":"飞速",
+  "tpm3u8":"淘片",
+  "lem3u8":"鱼乐",
+  "dbm3u8":"百度",
+  "tomm3u8":"番茄",
+  "ukm3u8":"优酷",
+  "ikm3u8":"爱坤",
+  "hnzym3u8":"红牛资源",
+  "hnm3u8":"红牛",
+  "68zy_m3u8":"六八",
+  "kdm3u8":"酷点",
+  "bdxm3u8":"北斗星",
+  "hhm3u8":"豪华",
+  "kbm3u8":"快播",
+  "mzm3u8":"MZ",
+  "xigua":"西瓜",
+  "xiguam3u8":"西瓜",
+  "xgm3u8":"西瓜"
+};
 const doubanPosterCache = new Map();
 
 function abs(url) {
@@ -126,7 +177,7 @@ function dedupeSearchResults(list) {
   return list.filter(item => {
     const title = normalizeTitle(item.vod_name);
     const year = String(item.vod_year || "");
-    const key = title ? title + "::" + year : String(item.vod_id || "");
+    const key = title && year ? title + "::" + year : String(item.vod_id || title || "");
     if (!key || seen.has(key)) return false;
     seen.add(key);
     return true;
@@ -184,7 +235,7 @@ async function doubanPoster(name, year = "") {
     const url =
       "https://frodo.douban.com/rexxar/api/v2/search/weixin?q=" +
       encodeURIComponent(titleKey) +
-      "&start=0&count=20&apikey=0ac44ae016490db2204ce0a042db2916";
+      "&start=0&count=8&apikey=0ac44ae016490db2204ce0a042db2916";
 
     const res = await req(url, {
       method: "get",
@@ -230,8 +281,8 @@ async function doubanPoster(name, year = "") {
       });
     }
 
-    if (!hit && candidates.length) hit = candidates[0];
-
+    // No arbitrary first-result fallback: a wrong poster is worse than
+    // keeping Ikanbot's original image.
     if (hit && hit.target) {
       const targetId = hit.target.id || hit.item.id || "";
       const targetType = String(hit.item.target_type || hit.target.type || "");
@@ -316,9 +367,11 @@ function parseList(html, search = false) {
       const a = root.find("a[href*='/play/']:first");
       const img = root.find("img:first");
       const titleText = root.find(".title-text:first").text().trim();
-      const yearMatch = titleText.match(/(?:^|\s)(\d{4})\s*$/);
-      const year = yearMatch ? yearMatch[1] : "";
-      const cleanTitle = titleText.replace(/\s+\d{4}\s*$/, "").trim();
+      const yearMatch = titleText.match(/(?:19|20)\d{2}/);
+      const year = yearMatch ? yearMatch[0] : "";
+      const cleanTitle = year
+        ? titleText.replace(new RegExp("[\\s(（\\[]*" + year + "[)）\\]]*\\s*$"), "").trim()
+        : titleText;
 
       addVod(
         list,
@@ -553,34 +606,47 @@ async function detail(id) {
 
   const from = [];
   const urls = [];
-  const entries = Array.from(groups.entries()).map(([flag, values]) => ({
+  const entries = Array.from(groups.entries()).map(([flag, values], index) => ({
     flag: String(flag),
     lower: String(flag).toLowerCase(),
-    values
+    values,
+    index
   }));
 
-  for (const pref of PREFERRED_LINES) {
-    const hit = entries.find(entry =>
-      pref.flags.some(flag => entry.lower === String(flag).toLowerCase())
-    );
-    if (!hit) continue;
+  const used = new Set();
+
+  function appendLine(entry, displayName) {
+    if (!entry || used.has(entry.lower)) return;
 
     const seenUrls = new Set();
-    const merged = hit.values.filter(Boolean).filter(entry => {
-      const pos = String(entry).indexOf("$");
-      const url = pos >= 0 ? String(entry).slice(pos + 1) : String(entry);
+    const merged = entry.values.filter(Boolean).filter(value => {
+      const pos = String(value).indexOf("$");
+      const url = pos >= 0 ? String(value).slice(pos + 1) : String(value);
       if (!url || seenUrls.has(url)) return false;
       seenUrls.add(url);
       return true;
     });
-    if (!merged.length) continue;
 
-    from.push(pref.name);
+    if (!merged.length) return;
+    used.add(entry.lower);
+    from.push(displayName || LINE_NAMES[entry.lower] || entry.flag);
     urls.push(merged.join("#"));
   }
 
-  console.log("[ikanbot-cover] preferred lines=" + from.join(","));
-  // FongMi splits both fields on exactly three dollar signs.
+  // Keep the five commonly used lines first, but do not hide the others.
+  for (const pref of PREFERRED_LINES) {
+    const hit = entries.find(entry =>
+      pref.flags.some(flag => entry.lower === String(flag).toLowerCase())
+    );
+    appendLine(hit, pref.name);
+  }
+
+  // Append every remaining source in the order returned by Ikanbot.
+  for (const entry of entries) {
+    appendLine(entry, LINE_NAMES[entry.lower] || entry.flag);
+  }
+
+  console.log("[ikanbot-cover] lines=" + from.join(","));
   vod.vod_play_from = from.join(LINE_SEPARATOR);
   vod.vod_play_url = urls.join(LINE_SEPARATOR);
 
