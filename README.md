@@ -57,7 +57,7 @@ tvbox/
 
 | 名称 | 实现 | 说明 |
 | --- | --- | --- |
-| 🎬 爱看 | `XYQ.jar / csp_Ikanbot` | 当前主要影视入口 |
+| 🎬 爱看 | `XYQ.jar / csp_Ikanbot` | 当前稳定入口 |\n| 🧪 爱看·封面修复 | `QuickJS / js/ikanbot-cover.js` | 测试封面代理与资料解析 |
 | 🎞️ 低端 | `pg.jar / csp_Ddys` | 备用影视源 |
 | 📚 豆瓣 | `pg.jar / csp_Douban` | 分类 / 推荐 |
 | 📺 哔哩 | `pg.jar / csp_Bili` | Bilibili |
@@ -311,3 +311,22 @@ leanback-armeabi_v7a.apk
 ---
 
 > 本仓库仅作为个人配置与技术研究记录。第三方站点、接口、Spider、JAR、直播源及其内容由对应上游维护者提供，其可用性、安全性和授权状态均可能随时间变化。
+
+
+## 封面修复测试
+
+`1.0.0` 保留原来的 `XYQ.jar` 稳定方案。当前 `main` 额外增加：
+
+```text
+🧪 爱看·封面修复
+  ↓
+js/ikanbot-cover.js
+  ↓
+https://v.aikanbot.com
+  ↓
+https://img-p.aikanbot.com/proxy?url=...
+```
+
+主要解决部分搜索结果返回了图片地址，但电视端直接加载失败的问题。
+
+该测试源不会替换原来的 `🎬 爱看`，确认搜索、封面、详情和播放都正常后再考虑升级为默认入口。
