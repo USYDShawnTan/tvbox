@@ -53,30 +53,65 @@ async function doubanPoster(name) {
 
   let result = "";
   try {
-    const url = "https://movie.douban.com/j/subject_suggest?q=" + encodeURIComponent(key);
+    const url =
+      "https://frodo.douban.com/rexxar/api/v2/search/weixin?q=" +
+      encodeURIComponent(key) +
+      "&start=0&count=20&apikey=0ac44ae016490db2204ce0a042db2916";
+
     const res = await req(url, {
       method: "get",
       headers: {
-        "User-Agent": UA,
-        "Referer": "https://movie.douban.com/"
+        "Host": "frodo.douban.com",
+        "Connection": "Keep-Alive",
+        "Referer": "https://servicewechat.com/wx2f9b06c1de1ccfca/84/page-frame.html",
+        "User-Agent": "Mozilla/5.0 (Windows NT 6.1; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/53.0.2785.143 Safari/537.36 MicroMessenger/7.0.9.501 NetType/WIFI MiniProgramEnv/Windows WindowsWechat"
       }
     });
 
-    const data = JSON.parse(res && res.content ? res.content : "[]");
-    if (Array.isArray(data) && data.length) {
-      const target = normalizeTitle(key);
-      let hit = data.find(item => normalizeTitle(item && item.title) === target);
+    const body = res && res.content ? res.content : "";
+    const data = JSON.parse(body || "{}");
+    const items = Array.isArray(data.items) ? data.items : [];
+    const target = normalizeTitle(key);
 
-      if (!hit) {
-        hit = data.find(item => {
-          const title = normalizeTitle(item && item.title);
-          return title && (title.includes(target) || target.includes(title));
-        });
-      }
+    const candidates = items
+      .map(item => ({
+        item,
+        target: item && item.target ? item.target : null
+      }))
+      .filter(x => {
+        const t = x.target;
+        if (!t) return false;
+        const type = String(x.item.target_type || t.type || "");
+        return type === "movie" || type === "tv";
+      });
 
-      if (!hit) hit = data[0];
-      if (hit && hit.img) result = String(hit.img);
+    let hit = candidates.find(x => normalizeTitle(x.target.title) === target);
+    if (!hit) {
+      hit = candidates.find(x => {
+        const title = normalizeTitle(x.target.title);
+        return title && target && (title.includes(target) || target.includes(title));
+      });
     }
+    if (!hit && candidates.length) hit = candidates[0];
+
+    if (hit && hit.target) {
+      let raw =
+        hit.target.cover_url ||
+        (hit.target.pic && (hit.target.pic.normal || hit.target.pic.large || hit.target.pic.small)) ||
+        "";
+
+      if (raw) {
+        raw = String(raw);
+        if (raw.startsWith("//")) raw = "https:" + raw;
+        if (!/^https?:\/\//i.test(raw)) raw = "https://" + raw.replace(/^\/+/, "");
+
+        result =
+          raw +
+          "@Referer=https://api.douban.com/@User-Agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/117.0.0.0 Safari/537.36";
+      }
+    }
+
+    console.log("[ikanbot-cover] douban=" + key + " poster=" + (result ? "ok" : "miss"));
   } catch (e) {
     console.log("[ikanbot-cover] douban poster lookup failed: " + key + " " + e.message);
   }
