@@ -31,14 +31,15 @@
       "key": "JianpianTest",
       "name": "🧪 荐片",
       "type": 3,
-      "api": "csp_Jianpian",
+      "api": "csp_JianPian",
       "playerType": 1,
       "searchable": 1,
       "quickSearch": 0,
       "filterable": 1,
       "changeable": 1,
       "timeout": 60,
-      "ext": "./json/jianpian.json$$$1"
+      "ext": "http://39.108.238.168:20000",
+      "jar": "./jar/XYQ.jar"
     },
     {
       "key": "豆瓣",
