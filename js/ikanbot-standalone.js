@@ -132,6 +132,54 @@ async function search(wd, quick, pg) {
     if (v.vod_id && v.vod_name) list.push(v);
   });
 
+  // The current Ikanbot search page may no longer use div.media.
+  // Fall back to play links and deduplicate by href.
+  if (list.length === 0) {
+    const seen = new Set();
+
+    $("a[href^='/play/']").each((_, a) => {
+      const href = $(a).attr("href") || "";
+      if (!href || seen.has(href)) return;
+
+      const links = $("a[href='" + href.replace(/'/g, "\\'") + "']");
+      let name = "";
+      let pic = "";
+
+      links.each((__, link) => {
+        if (!name) {
+          name = $(link).text().replace(/\s+/g, " ").trim();
+        }
+        const img = $(link).find("img:first");
+        if (!pic && img.length) {
+          pic = img.attr("data-src") || img.attr("src") || "";
+          if (!name) name = img.attr("alt") || "";
+        }
+      });
+
+      // Prefer a nearby heading when the thumbnail link itself has no text.
+      if (!name) {
+        const parent = $(a).parent();
+        name =
+          parent.find("h5:first").text().trim() ||
+          parent.find("h4:first").text().trim() ||
+          parent.find("h3:first").text().trim();
+      }
+
+      if (!name) return;
+
+      const containerText = $(a).parent().parent().text().replace(/\s+/g, " ").trim();
+      const lineMatch = containerText.match(/\[(\d+)条线路可播放\]/);
+
+      seen.add(href);
+      list.push({
+        vod_id: href,
+        vod_name: name,
+        vod_pic: absolute(pic),
+        vod_remarks: lineMatch ? lineMatch[1] + "条线路" : ""
+      });
+    });
+  }
+
   console.log("[ikanbot] search results=" + list.length);
 
   const hasMore = $("div.page-more a").filter((_, el) => $(el).text().includes("下一页")).length > 0;
