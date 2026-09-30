@@ -5,11 +5,11 @@ const UA = "Mozilla/5.0 (Linux; Android 11; TV) AppleWebKit/537.36 (KHTML, like 
 const DOUBAN_TIMEOUT = 3000;
 const DOUBAN_CONCURRENCY = 3;
 const PREFERRED_LINES = [
-  { name: "lz", flags: ["lzm3u8", "lz线路", "lz"] },
-  { name: "ff", flags: ["ffm3u8", "ff"] },
-  { name: "1080zyk", flags: ["1080zyk", "1080zy"] },
-  { name: "xigua", flags: ["xigua", "xiguam3u8"] },
-  { name: "kc", flags: ["kcm3u8", "kc"] }
+  { name: "量子", flags: ["lzm3u8", "lz线路", "lz"] },
+  { name: "非凡", flags: ["ffm3u8", "ff"] },
+  { name: "优质", flags: ["1080zyk", "1080zy"] },
+  { name: "西瓜", flags: ["xigua", "xiguam3u8", "xgm3u8"] },
+  { name: "快车", flags: ["kcm3u8", "kc"] }
 ];
 const doubanPosterCache = new Map();
 
@@ -426,11 +426,43 @@ async function detail(id) {
   const groups = new Map();
   for (const row of rows) {
     let items = [];
-    try { items = JSON.parse(row.resData || "[]"); } catch (_) {}
+    try {
+      items = JSON.parse(String(row.resData || "[]").replace(/#{2,}/g, "#"));
+    } catch (_) {}
+
     for (const item of items) {
       if (!item || !item.flag || !item.url) continue;
-      if (!groups.has(item.flag)) groups.set(item.flag, []);
-      groups.get(item.flag).push(String(item.url).replace(/##/g, "#"));
+
+      const flag = String(item.flag);
+      const rawUrl = String(item.url).trim();
+      if (!rawUrl) continue;
+
+      const label = String(item.name || item.title || item.remarks || "播放")
+        .replace(/[$#]/g, " ")
+        .trim() || "播放";
+
+      if (!groups.has(flag)) groups.set(flag, []);
+
+      // getResN normally returns one episode object at a time:
+      // {flag, name, url}. Build TVBox's "episode$url" ourselves
+      // instead of concatenating raw line URLs.
+      if (rawUrl.includes("#")) {
+        for (const part of rawUrl.split("#")) {
+          const value = String(part || "").trim();
+          if (!value) continue;
+
+          if (value.includes("$")) {
+            const pos = value.indexOf("$");
+            const epName = value.slice(0, pos).replace(/[$#]/g, " ").trim() || label;
+            const epUrl = value.slice(pos + 1).trim();
+            if (epUrl) groups.get(flag).push(epName + "$" + epUrl);
+          } else {
+            groups.get(flag).push(label + "$" + value);
+          }
+        }
+      } else {
+        groups.get(flag).push(label + "$" + rawUrl);
+      }
     }
   }
 
@@ -448,7 +480,14 @@ async function detail(id) {
     );
     if (!hit) continue;
 
-    const merged = Array.from(new Set(hit.values.filter(Boolean)));
+    const seenUrls = new Set();
+    const merged = hit.values.filter(Boolean).filter(entry => {
+      const pos = String(entry).indexOf("$");
+      const url = pos >= 0 ? String(entry).slice(pos + 1) : String(entry);
+      if (!url || seenUrls.has(url)) return false;
+      seenUrls.add(url);
+      return true;
+    });
     if (!merged.length) continue;
 
     from.push(pref.name);
@@ -456,6 +495,7 @@ async function detail(id) {
   }
 
   console.log("[ikanbot-cover] preferred lines=" + from.join(","));
+  // "$$" separates playback lines; "#" separates episodes within a line.
   vod.vod_play_from = from.join("$$");
   vod.vod_play_url = urls.join("$$");
 
