@@ -46,6 +46,55 @@ function normalizeTitle(value) {
     .replace(/[\s·•・:：!！?？,，.。\-—_()（）\[\]【】《》"'“”‘’]/g, "");
 }
 
+function upgradeDoubanImage(url) {
+  let value = String(url || "");
+  if (!value) return "";
+  value = value
+    .replace("/view/photo/s_ratio_poster/public/", "/view/photo/l/public/")
+    .replace("/view/photo/m/public/", "/view/photo/l/public/")
+    .replace("/view/subject/s/public/", "/view/subject/l/public/")
+    .replace("/view/subject/m/public/", "/view/subject/l/public/");
+  return value;
+}
+
+async function fetchDoubanLargePic(type, id) {
+  if (!id) return "";
+  const kinds = [];
+  if (type === "tv") kinds.push("tv", "movie");
+  else kinds.push("movie", "tv");
+
+  for (const kind of kinds) {
+    try {
+      const url =
+        "https://frodo.douban.com/api/v2/" +
+        kind +
+        "/" +
+        encodeURIComponent(id) +
+        "?apikey=0ac44ae016490db2204ce0a042db2916";
+
+      const res = await req(url, {
+        method: "get",
+        headers: {
+          "Host": "frodo.douban.com",
+          "Connection": "Keep-Alive",
+          "Referer": "https://servicewechat.com/wx2f9b06c1de1ccfca/84/page-frame.html",
+          "User-Agent": "Mozilla/5.0 (Windows NT 6.1; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/53.0.2785.143 Safari/537.36 MicroMessenger/7.0.9.501 NetType/WIFI MiniProgramEnv/Windows WindowsWechat"
+        }
+      });
+
+      const body = res && res.content ? res.content : "";
+      const data = JSON.parse(body || "{}");
+      const raw =
+        (data.pic && (data.pic.large || data.pic.normal)) ||
+        data.cover_url ||
+        "";
+
+      if (raw) return upgradeDoubanImage(raw);
+    } catch (_) {}
+  }
+  return "";
+}
+
 async function doubanPoster(name) {
   const key = String(name || "").trim();
   if (!key) return "";
@@ -95,10 +144,19 @@ async function doubanPoster(name) {
     if (!hit && candidates.length) hit = candidates[0];
 
     if (hit && hit.target) {
-      let raw =
-        hit.target.cover_url ||
-        (hit.target.pic && (hit.target.pic.normal || hit.target.pic.large || hit.target.pic.small)) ||
-        "";
+      const targetId = hit.target.id || hit.item.id || "";
+      const targetType = String(hit.item.target_type || hit.target.type || "");
+
+      // Prefer the subject detail endpoint's high-resolution pic.large.
+      let raw = await fetchDoubanLargePic(targetType, targetId);
+
+      if (!raw) {
+        raw =
+          (hit.target.pic && (hit.target.pic.large || hit.target.pic.normal || hit.target.pic.small)) ||
+          hit.target.cover_url ||
+          "";
+        raw = upgradeDoubanImage(raw);
+      }
 
       if (raw) {
         raw = String(raw);
