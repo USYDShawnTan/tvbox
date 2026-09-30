@@ -36,18 +36,13 @@ jobs:
             "jar/pg.jar"
             "jar/XYQ.jar"
             "json/douban.json"
-            "json/bili.json"
-            "json/sambashare.txt"
-            "lib/token.json"
             "list.txt"
           )
 
           for file in "${files[@]}"; do
             mkdir -p "$(dirname "$file")"
             tmp="$(mktemp)"
-            curl --fail --location --retry 3 --retry-delay 2 \
-              "$BASE/$file" \
-              --output "$tmp"
+            curl --fail --location --retry 3 --retry-delay 2               "$BASE/$file"               --output "$tmp"
             test -s "$tmp"
             mv "$tmp" "$file"
           done
@@ -59,9 +54,6 @@ jobs:
           test -s jar/pg.jar
           test -s jar/XYQ.jar
           test -s json/douban.json
-          test -s json/bili.json
-          test -s json/sambashare.txt
-          test -s lib/token.json
           test -s list.txt
 
       - name: Commit changes
@@ -75,14 +67,7 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
 
-          git add \
-            jar/pg.jar \
-            jar/XYQ.jar \
-            json/douban.json \
-            json/bili.json \
-            json/sambashare.txt \
-            lib/token.json \
-            list.txt
+          git add             jar/pg.jar             jar/XYQ.jar             json/douban.json             list.txt
 
           git commit -m "chore: sync upstream assets"
           git push
