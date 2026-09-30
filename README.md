@@ -21,8 +21,8 @@ https://gh-proxy.com/https://raw.githubusercontent.com/USYDShawnTan/tvbox/main/c
 | 名称 | 实现 | 说明 |
 | --- | --- | --- |
 | 🎬 爱看·快速 | `XYQ.jar / csp_Ikanbot` | 搜索和播放快；部分原站封面可能缺失 |
-| 🖼️ 爱看·高清封面 | `QuickJS / ikanbot-cover.js` | Ikanbot 搜索播放 + 豆瓣高清海报；请求更多，速度较慢 |
-| 🧪 荐片 | `XYQ.jar / csp_JianPian` | 测试源；跟随当前 XYQ 实现 |\n| 📚 豆瓣 | `pg.jar / csp_Douban` | 分类、榜单、评分、海报和影视资料 |
+| ⚡ 优速 | `QuickJS / ikanbot-cover.js` | Ikanbot + 豆瓣高清海报；只保留 lz / ff / 1080zyk / xigua / kc 线路 |
+| 🧪 荐片 | `QuickJS / jianpian.js` | 直接调用荐片 API；继续测试分类 / 搜索 / 播放 |
 | 📺 哔哩 | `QuickJS / bili.js` | 直接调用 Bilibili API，不再依赖旧 `csp_Bili` 规则 |
 
 已经移除：
@@ -114,7 +114,8 @@ tvbox/
 │   └── XYQ.jar
 ├── js/
 │   ├── bili.js
-│   └── ikanbot-cover.js
+│   ├── ikanbot-cover.js
+│   └── jianpian.js
 ├── json/
 │   └── douban.json
 ├── .github/
@@ -309,3 +310,46 @@ http://39.108.238.168:20000
 ```
 
 原来的 `json/jianpian.json` 不再参与配置。
+
+
+## 优速线路
+
+原来的 `爱看·高清封面` 已改名为：
+
+```text
+⚡ 优速
+```
+
+仍然保留 Ikanbot 搜索 / 播放和豆瓣高清海报逻辑，但播放线路只保留以下五组，并按这个顺序展示：
+
+```text
+lz        ← lzm3u8
+ff        ← ffm3u8
+1080zyk   ← 1080zyk
+xigua     ← xigua
+kc        ← kcm3u8
+```
+
+其它 Ikanbot 返回线路不再出现在详情页，避免线路列表过长。
+
+## 荐片继续测试
+
+荐片前两版分别尝试了旧 `pg.jar` 过滤配置和当前 `XYQ.jar / csp_JianPian`。后者能显示分类但分类内容为空。
+
+继续排查后发现，公开的旧版 Jianpian 实现直接调用：
+
+```text
+http://api2.rinhome.com
+```
+
+并使用荐片 App 请求头访问 `/api/crumb/list`、`/api/video/search` 和 `/api/node/detail`。
+
+因此当前测试版改为仓库自己的：
+
+```text
+js/jianpian.js
+  ↓
+api2.rinhome.com
+```
+
+不再依赖 `XYQ.jar` 内部的动态域名发现逻辑。脚本已经加入分类、搜索、详情、常见播放线路解析以及 FongMi JianPian / ftp extractor 兼容处理。
