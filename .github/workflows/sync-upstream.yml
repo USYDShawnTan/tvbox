@@ -34,6 +34,7 @@ jobs:
 
           files=(
             "jar/pg.jar"
+            "jar/XYQ.jar"
             "json/douban.json"
             "json/bili.json"
             "json/sambashare.txt"
@@ -56,6 +57,7 @@ jobs:
         run: |
           python -m json.tool config.json >/dev/null
           test -s jar/pg.jar
+          test -s jar/XYQ.jar
           test -s json/douban.json
           test -s json/bili.json
           test -s json/sambashare.txt
@@ -75,6 +77,7 @@ jobs:
 
           git add \
             jar/pg.jar \
+            jar/XYQ.jar \
             json/douban.json \
             json/bili.json \
             json/sambashare.txt \
