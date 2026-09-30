@@ -24,6 +24,7 @@ https://gh-proxy.com/https://raw.githubusercontent.com/USYDShawnTan/tvbox/main/c
 | --- | --- | --- |
 | 🎬 爱看·快速 | `XYQ.jar / csp_Ikanbot` | 搜索 / 播放速度优先，部分原站封面可能缺失 |
 | ⚡ 优速 | `QuickJS / ikanbot-cover.js` | Ikanbot + 豆瓣高清海报 + 精简播放线路 |
+| 🧪 4K剧院 | `drpy2 / 4k剧院.js` | 4K 测试源；先验证分类、搜索和实际播放清晰度 |
 | 📚 豆瓣 | `pg.jar / csp_Douban` | 分类、榜单、评分、海报和影视资料 |
 | 📺 哔哩 | `QuickJS / bili.js` | Bilibili API，支持热门、搜索、详情、分 P 和播放 |
 
@@ -204,7 +205,10 @@ tvbox/
 │   └── XYQ.jar
 ├── js/
 │   ├── bili.js
-│   └── ikanbot-cover.js
+│   ├── ikanbot-cover.js
+│   └── 4k剧院.js
+├── lib/
+│   └── drpy2.min.js
 ├── json/
 │   └── douban.json
 ├── .github/
@@ -221,6 +225,8 @@ tvbox/
 jar/pg.jar
 jar/XYQ.jar
 json/douban.json
+lib/drpy2.min.js
+js/4k剧院.js
 ```
 
 `config.json`、`js/bili.js` 和 `js/ikanbot-cover.js` 由本仓库自己维护。
@@ -299,3 +305,36 @@ https://github.com/USYDShawnTan/tvbox/tree/1.2.0
 ```
 
 > 本仓库用于个人配置与技术研究。第三方站点、接口和 Spider 的可用性可能随时间变化。
+
+
+## 4K剧院测试
+
+新增独立测试入口：
+
+```text
+🧪 4K剧院
+  ↓
+lib/drpy2.min.js
+  ↓
+js/4k剧院.js
+  ↓
+https://4k4k.live
+```
+
+当前直接跟随高天流云上游规则，先不做二次魔改，重点验证：
+
+```text
+分类是否加载
+→ 搜索是否正常
+→ 详情是否正常
+→ 能否直接播放
+→ 实际是否为 2160p / 4K，而不只看片名标签
+```
+
+为避免尚未验证的源加入全局聚合搜索，当前设置：
+
+```json
+"quickSearch": 0
+```
+
+对应的 `lib/drpy2.min.js` 和 `js/4k剧院.js` 已加入每 6 小时上游同步。
